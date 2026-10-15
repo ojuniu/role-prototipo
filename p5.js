@@ -93,8 +93,8 @@ SCREENS.search={tabbar:false,
   let tm,tn;q.addEventListener('input',()=>{clearTimeout(tm);clearTimeout(tn);const v=q.value.trim();$$('#sc [data-c]',el).forEach(x=>x.classList.remove('lime'));if(v.length<2){seq++;home();return;}
    const nv=norm(v);const my=++seq;const loc=dedupe([...localFuel(near,15000,nv),...localPOI(p=>norm(p.name).includes(nv),near,15000)]);let acc=loc;if(loc.length)draw(rank(v,loc).slice(0,20),'',true);
    if(ctl)ctl.abort();ctl=new AbortController();const sig=ctl.signal;
-   tm=setTimeout(async()=>{try{const a=await photon(v,near,sig);if(my!==seq)return;acc=dedupe([...acc,...a]);draw(rank(v,acc).slice(0,20),'',true);}catch(e){}
-    if(my!==seq)return;tn=setTimeout(async()=>{let b=[];try{b=await nomi(v,near,tmo(6000));}catch(e){}if(my!==seq)return;acc=dedupe([...acc,...b]);draw(rank(v,acc).slice(0,20),'',false);},500);},180);});
+   let left=2;const got=l=>{left--;if(my!==seq)return;acc=dedupe([...acc,...l]);draw(rank(v,acc).slice(0,20),'',left>0);};
+   tm=setTimeout(()=>{photon(v,near,tmo(9000,ctl)).then(got,()=>got([]));nomi(v,near,tmo(8000,ctl)).then(got,()=>got([]));},350);});
   q.addEventListener('keydown',e=>{if(e.key==='Enter'&&items[0]&&q.value.trim().length>=2){$('[data-i="0"]',res).click();}});}};
 /* ================= deslizar entre as abas ================= */
 const TABS=['map','feed','garage','profile'];const FT=['all','fol','crew'];
@@ -226,10 +226,9 @@ SCREENS.chat={clear:true,tabbar:false,
   const pick=x=>{sq++;clearTimeout(tm);this.ctr=x.p;this.cname=x.name;box.innerHTML='';cq.value='';cq.blur();const t=$('[data-city]',el);if(t)t.textContent=x.name;this.mapReady();draw();toast('Chat de '+x.name,'dark');};
   const show=l=>{sug=l;box.innerHTML=l.length?`<div class="cqs">${l.map((x,i)=>`<button data-s="${i}">${ic(PIN,16)}<div style="flex:1;min-width:0"><div class="b">${esc(x.name)}</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.addr)}</div></div></button>`).join('')}</div>`:'';$$('[data-s]',box).forEach(b=>b.onclick=()=>pick(sug[+b.dataset.s]));};
   cq.addEventListener('input',()=>{clearTimeout(tm);const v=cq.value.trim();const my=++sq;if(v.length<2){show([]);return;}
-   tm=setTimeout(async()=>{let l=[];try{const j=await(await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&limit=10&lat=${myPos()[1]}&lon=${myPos()[0]}&location_bias_scale=0.2&layer=city&layer=district&layer=locality`,{signal:tmo(5000)})).json();
-     l=(j.features||[]).filter(f=>(f.properties.countrycode||'BR')==='BR').map(f=>{const p=f.properties;return{name:p.name,addr:[p.city&&p.city!==p.name?p.city:'',p.county,p.state].filter(Boolean).join(', '),p:f.geometry.coordinates};});}catch(e){}
-    if(!l.length){try{const j=await(await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=6&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(v)}`,{signal:tmo(6000)})).json();l=j.map(x=>{const pr=x.display_name.split(',');return{name:x.name||pr[0],addr:pr.slice(1,4).join(',').trim(),p:[+x.lon,+x.lat]};});}catch(e){}}
-    if(my===sq)show(dedupe(l).slice(0,6));},250);});
+   tm=setTimeout(()=>{let acc=[];const got=l=>{if(my!==sq)return;acc=dedupe([...acc,...l]);show(acc.slice(0,6));};
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=6&countrycodes=br&accept-language=pt-BR&featureType=settlement&q=${encodeURIComponent(v)}`,{signal:tmo(8000)}).then(r=>r.json()).then(j=>got(j.map(x=>{const pr=x.display_name.split(',');return{name:x.name||pr[0],addr:pr.slice(1,4).join(',').trim(),p:[+x.lon,+x.lat]};}))).catch(()=>{});
+    fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&limit=8&lat=${myPos()[1]}&lon=${myPos()[0]}&location_bias_scale=0.2&layer=city&layer=district&layer=locality`,{signal:tmo(9000)}).then(r=>r.json()).then(j=>got((j.features||[]).filter(f=>(f.properties.countrycode||'BR')==='BR').map(f=>{const p=f.properties;return{name:p.name,addr:[p.city&&p.city!==p.name?p.city:'',p.county,p.state].filter(Boolean).join(', '),p:f.geometry.coordinates};}))).catch(()=>{});},450);});
   cq.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(sug[0])pick(sug[0]);}});},
  leave(){const m=RL.getMap&&RL.getMap();if(m&&m.getLayer('chatR-f'))['chatR-f','chatR-l'].forEach(l=>m.setLayoutProperty(l,'visibility','none'));},
  on:{prof(a){a.dataset.h===S.me.handle?router.go('profile'):router.go('person',{h:a.dataset.h});},
