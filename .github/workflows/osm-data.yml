@@ -1,4 +1,4 @@
-name: Dados OSM + ANTT (radares, semáforos, placas, postos)
+name: Dados OSM + ANTT + ANP (radares, semáforos, placas, postos)
 on:
   workflow_dispatch:
   schedule:
@@ -135,6 +135,52 @@ jobs:
               if any((c[0] + dx, c[1] + dy) in seen for dx in (-1, 0, 1) for dy in (-1, 0, 1)): continue
               seen.add(c); radars.append(r); nA += 1
           print('radares ANTT novos', nA)
+          # postos oficiais da ANP (cadastro de revendedores, com coordenadas)
+          BR = {'VIBRA': 'Petrobras', 'RAIZEN': 'Shell', 'IPIRANGA': 'Ipiranga', 'ALESAT': 'ALE', 'BANDEIRA BRANCA': ''}
+          SUF = re.compile(r'\b(LTDA|EIRELI|ME|EPP|S\.?A\.?|S/A|LIMITADA|CIA)\b\.?', re.I)
+          def nice(n):
+              n = SUF.sub('', n or '').replace('&', 'e').strip(' .-,')
+              return ' '.join(w.capitalize() if len(w) > 2 else w.lower() for w in n.split())
+          def fxs(prods):
+              p = ' '.join((x.get('produto') or '') for x in prods or []).upper()
+              return ''.join(c for c, k in (('g', 'GASOLINA C COMUM'), ('a', 'GASOLINA C COMUM ADITIVADA'), ('e', 'ETANOL'), ('d', 'S10'), ('n', 'NATURAL VEICULAR')) if k in p)
+          def anp():
+              out = []; pg = 1
+              try:
+                  while True:
+                      rq = urllib.request.Request(f'https://revendedoresapi.anp.gov.br/v1/combustivel?numeropagina={pg}', headers={'User-Agent': 'role-prototipo (github actions)'})
+                      j = json.load(urllib.request.urlopen(rq, timeout=180))
+                      for d in j.get('data') or []:
+                          try: lat = float(d['latitude']); lon = float(d['longitude'])
+                          except Exception: continue
+                          if not (-35 < lat < 6 and -75 < lon < -30): continue
+                          b = (d.get('distribuidora') or '').upper()
+                          out.append([-(10 ** 10 + int(d.get('codigoSIMP') or 0)), lon, lat, nice(d.get('razaoSocial')), BR.get(b, b.title()), fxs(d.get('produtos'))])
+                      f = j.get('searchPageFilter') or {}
+                      if pg >= int(f.get('totalPagina') or 1) or pg > 60: break
+                      pg += 1
+              except Exception as e:
+                  print('ANP falhou na pagina', pg, e)
+              print('ANP', len(out)); return out
+          fcell = collections.defaultdict(list)
+          for k, v in tiles.items():
+              for st in v.get('fuel', []): fcell[(int(st[1] * 1000), int(st[2] * 1000))].append(st)
+          nF = 0; nE = 0
+          for a in anp():
+              cx, cy = int(a[1] * 1000), int(a[2] * 1000); best = None; bd = 130
+              for dx in (-1, 0, 1):
+                  for dy in (-1, 0, 1):
+                      for st in fcell.get((cx + dx, cy + dy), ()):
+                          d = math.hypot((st[1] - a[1]) * 111320 * math.cos(math.radians(a[2])), (st[2] - a[2]) * 110540)
+                          if d < bd: bd = d; best = st
+              if best:
+                  if len(best) < 6: best.append(a[5])
+                  if not best[3] or best[3] == best[4]: best[3] = a[3]
+                  if not best[4]: best[4] = a[4]
+                  nE += 1
+              else:
+                  tiles[tk(a[1], a[2])]['fuel'].append([a[0], r5(a[1]), r5(a[2]), a[3], a[4], a[5]]); fcell[(cx, cy)].append(a); nF += 1
+          print('postos ANP novos', nF, 'enriquecidos', nE)
           for r in radars: tiles[tk(r[0], r[1])]['rad'].append([r5(r[0]), r5(r[1]), r[2] or 0])
           if os.path.isdir(out): shutil.rmtree(out)
           os.makedirs(out)
