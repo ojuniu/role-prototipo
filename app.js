@@ -50,7 +50,7 @@ function restyle(){for(const l of map.getStyle().layers||[]){const id=l.id.toLow
   else if(l.type==='fill'){let c='#121310';if(/water/.test(id))c='#0B1214';else if(/park|wood|grass|forest|green|cemetery|pitch|landcover|scrub/.test(id))c='#111A0F';else if(/building/.test(id))c='#1A1B18';map.setPaintProperty(l.id,'fill-color',c);map.setPaintProperty(l.id,'fill-opacity',1);try{map.setPaintProperty(l.id,'fill-outline-color',c)}catch(e){}}
   else if(l.type==='fill-extrusion'){map.setPaintProperty(l.id,'fill-extrusion-color','#1F201C');map.setPaintProperty(l.id,'fill-extrusion-opacity',.9);}
   else if(l.type==='line'){if(/water|river|stream|canal/.test(id))map.setPaintProperty(l.id,'line-color','#0B1214');else if(/boundary|admin/.test(id))map.setLayoutProperty(l.id,'visibility','none');else{const major=/motorway|trunk|primary|secondary|major/.test(id);map.setPaintProperty(l.id,'line-color',/casing/.test(id)?'#0D0E0C':(major?'#3B3D37':'#2A2C27'));}}
-  else if(l.type==='symbol'){if(/poi|shield|transit|aerialway|ferry|housenum/.test(id))map.setLayoutProperty(l.id,'visibility','none');else{map.setPaintProperty(l.id,'text-color','#8C8E86');map.setPaintProperty(l.id,'text-halo-color','#0D0E0C');}}
+  else if(l.type==='symbol'){if(/shield|aerialway|ferry|housenum/.test(id))map.setLayoutProperty(l.id,'visibility','none');else{map.setPaintProperty(l.id,'text-color','#8C8E86');map.setPaintProperty(l.id,'text-halo-color','#0D0E0C');}}
   else if(l.type==='hillshade'||l.type==='raster')map.setLayoutProperty(l.id,'visibility','none');}catch(e){}}}
 const FC=f=>({type:'FeatureCollection',features:f});
 function addLayers(){

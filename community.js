@@ -33,7 +33,7 @@ const TX=['Pampulha no fim de tarde, {h} hex novos','Fui buscar pão e voltei co
 const CM=['Brabo demais','Essa rota é boa mesmo','Bora junto semana que vem?','Devolve meus hex 😂','Que horas foi isso?','Top!','Tô chegando nesse ranking','Rosa Choque vai responder'];
 const FPOSTS=[0,6,1,3,4,2,7,5,8,10].map((pi,i)=>{const p=P[pi],r=rnd(i+11);const hx=4+Math.floor(r()*14);return{id:'fp'+i,h:p.h,txt:TX[i%TX.length].replace('{h}',hx),hex:hx,km:Math.round(8+r()*60),sec:Math.round(900+r()*4000),t:Date.now()-(i*2.7+.6)*3600e3,horn:Math.round(20+r()*260),track:genTrack(i),cm:[0,1,2].slice(0,1+Math.floor(r()*3)).map(k=>({h:P[(pi+k+2)%P.length].h,txt:CM[(i+k)%CM.length],t:Date.now()-(i*2.7+.3-k*.1)*3600e3}))};});
 S.follow=S.follow||{'duka':1,'bia.turbo':1,'lia.m':1};S.horn=S.horn||{};S.cm=S.cm||{};
-const myPosts=()=>S.posts.map(p=>{const r=S.rides.find(x=>x.id===p.ride)||{};return{id:p.id,h:S.me.handle,mine:true,txt:p.txt,hex:r.hex||0,km:r.dist?r.dist/1000:0,sec:r.sec||0,t:p.t,horn:p.horn||0,track:r.track,cm:[]};});
+const myPosts=()=>S.posts.map(p=>{const r=S.rides.find(x=>x.id===p.ride)||{};return{id:p.id,h:S.me.handle,mine:true,txt:p.txt,hex:r.hex||0,km:r.dist?r.dist/1000:0,sec:r.sec||0,t:p.t,horn:p.horn||0,track:r.track,cm:[],loc:p.loc,where:p.where,city:p.city,hideEnds:p.hideEnds};});
 const allPosts=()=>[...myPosts(),...FPOSTS,...(RL.extraPosts||[])].sort((a,b)=>b.t-a.t);
 const postById=id=>allPosts().find(p=>p.id===id);
 const who=h=>h===S.me.handle?{h,n:S.me.name,crew:S.me.crew,g:ME_G,me:true,car:RL.featCar&&RL.featCar()?RL.featCar().model:''}:person(h);
@@ -45,7 +45,7 @@ const cmts=p=>[...(p.cm||[]),...(S.cm[p.id]||[])];
 const avOf=(w,s)=>RL.avatar?RL.avatar(w,s):av(ini(w.n),s,w.g);
 function postCard(p){const w=who(p.h);if(!w)return'';const c=w.crew&&CREWS[w.crew];
   return`<div class="card post"><div class="row"><div data-on="prof" data-h="${esc(p.h)}" style="display:flex;align-items:center;gap:12px;flex:1;text-align:left;cursor:pointer">${avOf(w,38)}<div><div class="b" style="font-size:14px">${esc(w.n)} ${w.crew?`<span style="font-weight:600;color:${c?c.c:'var(--tx3)'}">· ${esc(w.crew)}</span>`:''}</div><div class="small muted">${ago(p.t)}${RL.distTxt?RL.distTxt(p.h):''}${w.car?` · <button data-on="model" data-m="${esc(w.car)}" class="carlink">${esc(w.car)}</button>`:''}</div></div></div></div>
-  ${p.track&&p.track.length>1?`<div class="postmap">${trackSVG(p.track,360,170)}</div><div class="row small" style="margin-top:8px;gap:14px"><b class="lime">+${p.hex} hex</b><span>${String(Math.round(p.km*10)/10).replace('.',',')} km</span>${p.sec?`<span>${fmtT(p.sec)}</span>`:''}</div>`:''}
+  ${p.track&&p.track.length>1?`<div class="postmap">${RL.postMap?RL.postMap(p):trackSVG(p.track,360,170)}</div><div class="row small" style="margin-top:8px;gap:14px"><b class="lime">+${p.hex} hex</b><span>${String(Math.round(p.km*10)/10).replace('.',',')} km</span>${p.sec?`<span>${fmtT(p.sec)}</span>`:''}</div>`:''}
   <div style="margin-top:10px;font-size:14px;line-height:1.4">${esc(p.txt)}</div>
   <div class="acts"><button data-on="horn" data-id="${p.id}" class="${hornOn(p)?'on':''}">${ic(I.horn,18)}<span>${hornN(p)}</span></button><button data-on="cmts" data-id="${p.id}">${ic(I.cmt,17)}${cmts(p).length}</button><button data-on="sharep" data-id="${p.id}" style="margin-left:auto">${ic(I.share,17)}</button></div></div>`;}
 const postHandlers={

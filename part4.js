@@ -48,8 +48,8 @@ const kindOf=t=>{const h=t.highway,ts=String(t.traffic_sign||'');if(h==='speed_c
 function addStation(e){const t=e.tags||{};const p=e.type==='node'?[e.lon,e.lat]:e.center?[e.center.lon,e.center.lat]:null;if(!p)return;OSM.stations.set(e.id,{id:e.id,name:t.name||t.brand||'Posto',brand:t.brand||t.operator||'',p});}
 function loadTile(p){const x0=Math.floor(p[0]/.02)*.02,y0=Math.floor(p[1]/.02)*.02,k=x0.toFixed(2)+':'+y0.toFixed(2);if(tiles.has(k))return tiles.get(k);
   const bb=`${y0.toFixed(4)},${x0.toFixed(4)},${(y0+.02).toFixed(4)},${(x0+.02).toFixed(4)}`;
-  const q=`[out:json][timeout:25];(node["highway"~"^(speed_camera|traffic_signals|stop|give_way)$"](${bb});node["traffic_sign"](${bb});way["highway"]["maxspeed"](${bb}););out geom;`;
-  const pr=ovq(q).then(j=>{for(const e of j.elements){const t=e.tags||{};
+  const q=`[out:json][timeout:25];(node["highway"~"^(speed_camera|traffic_signals|stop|give_way)$"](${bb});node["traffic_sign"](${bb});way["highway"]["maxspeed"](${bb});rel["type"="enforcement"](${bb}););out geom;`;
+  const pr=ovq(q).then(j=>{for(const e of j.elements){const t=e.tags||{};if(e.type==='relation'){parseRel(e);continue;}
     if(e.type==='way'){const ms=parseInt(t.maxspeed);if(e.geometry&&ms)OSM.ways.set(e.id,{id:e.id,ms,g:e.geometry.map(n=>[n.lon,n.lat])});}
     else{const k=kindOf(t);if(k)OSM.nodes.set(e.id,{id:e.id,p:[e.lon,e.lat],k,ms:parseInt(t.maxspeed)||null});}}
    for(const n of OSM.nodes.values())if(n.k==='radar'&&!n.ms){const w=nearestWay(n.p,40);if(w)n.ms=w.ms;}
@@ -185,9 +185,16 @@ function hud(node,p){loadTile(p);const s=node.el&&$('#limS',node.el);const w=nea
 for(const nm of['nav','rec']){const sc=SCREENS[nm];if(!sc)continue;const o=sc.onPos,mr=sc.mapReady;
   sc.onPos=function(p){o&&o.call(this,p);try{hud(this,p);}catch(e){console.warn(e);}};
   sc.mapReady=function(){mr&&mr.call(this);rideUI(this);};}
+function parseRel(e){const t=e.tags||{};if(t.type!=='enforcement'||!e.members||!/maxspeed|mixed|average_speed/.test(t.enforcement||''))return;const dv=e.members.find(x=>x.role==='device'&&x.type==='node'&&x.lat!=null)||e.members.find(x=>x.type==='node'&&x.lat!=null);if(!dv||OSM.nodes.has(dv.ref))return;OSM.nodes.set('r'+e.id,{id:'r'+e.id,p:[dv.lon,dv.lat],k:'radar',ms:parseInt(t.maxspeed)||null});}
+const rtiles=new Map();
+function loadRadarTile(x0,y0){const k=x0.toFixed(1)+':'+y0.toFixed(1);if(rtiles.has(k))return;const bb=`${y0.toFixed(4)},${x0.toFixed(4)},${(y0+.1).toFixed(4)},${(x0+.1).toFixed(4)}`;
+  rtiles.set(k,ovq(`[out:json][timeout:25];(node["highway"="speed_camera"](${bb});rel["type"="enforcement"](${bb}););out geom;`).then(j=>{for(const e of j.elements){const t=e.tags||{};if(e.type==='node'){const o=OSM.nodes.get(e.id);OSM.nodes.set(e.id,{id:e.id,p:[e.lon,e.lat],k:'radar',ms:parseInt(t.maxspeed)||(o&&o.ms)||null});}else if(e.type==='relation')parseRel(e);}drawSigns();}).catch(()=>setTimeout(()=>rtiles.delete(k),30000)));}
+function loadView(m){const z=m.getZoom(),b=m.getBounds();if(z<11)return;let n=0;
+  for(let i=Math.floor(b.getWest()/.1);i*.1<b.getEast()&&n<6;i++)for(let j=Math.floor(b.getSouth()/.1);j*.1<b.getNorth()&&n<6;j++){loadRadarTile(i*.1,j*.1);n++;}
+  if(z>=13.5){n=0;for(let i=Math.floor(b.getWest()/.02);i*.02<b.getEast()&&n<9;i++)for(let j=Math.floor(b.getSouth()/.02);j*.02<b.getNorth()&&n<9;j++){loadTile([i*.02+.001,j*.02+.001]);n++;}}}
 /* ---------- boot ---------- */
 const wait=setInterval(()=>{const m=getMap();if(!m||!window.maplibregl)return;clearInterval(wait);
   let mt;m.on('idle',()=>{try{setupSigns(m);}catch(e){}if(!aMarks.length&&S.alerts.length)drawAlerts();seedAlerts();});
-  m.on('moveend',()=>{clearTimeout(mt);mt=setTimeout(()=>{simRoads();if(m.getZoom()>=14)loadTile(m.getCenter().toArray());},500);});
+  m.on('moveend',()=>{clearTimeout(mt);mt=setTimeout(()=>{simRoads();loadView(m);},500);});m.once('idle',()=>loadView(m));
   sim.raf=requestAnimationFrame(simTick);},250);
 })();
