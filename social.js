@@ -21,7 +21,7 @@ const st=document.createElement('style');st.textContent=`
 .postmap{height:190px!important}
 .smapw{position:absolute;inset:0;overflow:hidden;background:#0D0E0C}
 .smap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
-.smap img{position:absolute;width:256px;height:256px;max-width:none}
+.smap img{position:absolute;width:256px;height:256px;max-width:none;filter:brightness(.72) contrast(1.08)}.smap img.lbl{filter:brightness(1.1)}
 .smap.blur img{filter:blur(5px) brightness(.8)}
 .smap svg{position:absolute;left:0;top:0}
 .pmloc{position:absolute;left:10px;bottom:10px;z-index:3;max-width:calc(100% - 20px);height:26px;padding:0 10px;border-radius:99px;background:rgba(10,11,10,.82);border:1px solid rgba(255,255,255,.12);font-size:11.5px;font-weight:700;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#E8E9E4}
@@ -42,6 +42,7 @@ const st=document.createElement('style');st.textContent=`
 .tttxt{font-size:15px;line-height:1.35;margin-top:6px}
 .ttstats{display:flex;gap:12px;font-size:13px;font-weight:700;margin-top:8px}
 .ttinfo .pmloc{position:static;display:inline-flex;margin-top:10px}
+.tti .smapw .pmloc{bottom:auto;top:calc(64px + var(--safeT))}.tti .smapw .osmc{top:auto;bottom:100px}
 .tthdr{position:absolute;left:0;right:0;top:0;z-index:5;padding:calc(10px + var(--safeT)) 12px 10px;display:flex;align-items:center;gap:8px;background:linear-gradient(rgba(0,0,0,.6),transparent)}
 .tthdr .seg{flex:1;background:rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .tthdr .ib{background:rgba(0,0,0,.35);border-color:rgba(255,255,255,.14);width:38px;height:38px}
@@ -61,15 +62,17 @@ const MORE={car:{Chevrolet:'Agile,Astra,Blazer,Captiva,Celta,Chevette,Classic,Ka
  ALL.sort((x,y)=>y.m.length-x.m.length);})();
 const modelKey=RL.modelKey||(s=>s),isMoto=RL.isMoto||(()=>false);
 /* ================= fotos reais (Wikimedia Commons) ================= */
-let PH={};try{PH=JSON.parse(localStorage.getItem('role.photos')||'{}');}catch(e){}
-const savePH=()=>{try{localStorage.setItem('role.photos',JSON.stringify(PH));}catch(e){}};
+let PH={};try{PH=JSON.parse(localStorage.getItem('role.photos2')||'{}');localStorage.removeItem('role.photos');}catch(e){}
+const savePH=()=>{try{localStorage.setItem('role.photos2',JSON.stringify(PH));}catch(e){}};
 const pend=new Map();
 const BAD=/interior|innenraum|int[eé]rieur|engine|motor|logo|badge|emblem|dashboard|painel|cockpit|wheel|felge|trunk|kofferraum|seat|steering|lenkrad|detail|tail ?light|headlight|farol|lanterna|\.svg|\.pdf|\.tif|\.gif|\.webm|\.ogv|map|diagram|brochure|toy|model car|lego|crash|wreck|unfall|plate/i;
 function photosOf(model){if(PH[model])return Promise.resolve(PH[model]);if(pend.has(model))return pend.get(model);
   const pr=(async()=>{let urls=[];
-   try{const u=`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent('"'+model+'"')}&gsrlimit=30&prop=imageinfo&iiprop=url|size&iiurlwidth=720&format=json&origin=*`;
+   try{const u=`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent('"'+model+'" -interior -interieur -innenraum -engine -motor -dashboard -cockpit -painel')}&gsrlimit=40&prop=imageinfo&iiprop=url|size&iiurlwidth=720&format=json&origin=*`;
     const j=await(await fetch(u)).json();const pages=Object.values((j.query||{}).pages||{}).sort((a,b)=>a.index-b.index);
-    for(const p of pages){if(BAD.test(p.title))continue;const ii=p.imageinfo&&p.imageinfo[0];if(!ii||!ii.thumburl||ii.width<ii.height*1.15||ii.width<500)continue;urls.push(ii.thumburl);if(urls.length>=10)break;}}catch(e){}
+    const cand=[];for(const p of pages){if(BAD.test(p.title))continue;const ii=p.imageinfo&&p.imageinfo[0];if(!ii||!ii.thumburl||ii.width<ii.height*1.15||ii.width<500)continue;cand.push({u:ii.thumburl,g:/front|rear|side|vorne|hinten|frente|traseira|seitlich|exterior|\b(19|20)\d{2}\b/i.test(p.title)});}
+    const good=cand.filter(c=>c.g);urls=(good.length>=2?good:cand).slice(0,10).map(c=>c.u);}catch(e){}
+   try{const j=await(await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(model)}&redirects=1&prop=pageimages&piprop=thumbnail&pithumbsize=720&format=json&origin=*`)).json();const p=Object.values((j.query||{}).pages||{})[0];if(p&&p.thumbnail&&!/\.svg/i.test(p.thumbnail.source)&&!urls.includes(p.thumbnail.source))urls.unshift(p.thumbnail.source);}catch(e){}
    if(urls.length<2){try{const j=await(await fetch(`https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(model)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=720&format=json&origin=*`)).json();const p=Object.values((j.query||{}).pages||{})[0];if(p&&p.thumbnail&&!urls.includes(p.thumbnail.source))urls.push(p.thumbnail.source);}catch(e){}}
    PH[model]=urls;savePH();pend.delete(model);fillPics(model);return urls;})();pend.set(model,pr);return pr;}
 function carPic(model,seed){const l=PH[model];if(l)return l.length?l[Math.floor(hsh(seed+'|'+model)*l.length)]:null;photosOf(model);return undefined;}
@@ -96,10 +99,10 @@ RL.cityTag=()=>S.me.showCity&&S.me.city?` · <span style="display:inline-flex;al
 RL.personLocTxt=p=>{const m=locMode(p.h);if(m==='hidden')return' · localização oculta';const d=RL.distKm?RL.distKm(p.h):0;const city=myCity();return` · ${d<15?`<span data-city>${esc(city||'perto de você')}</span>`:'região'} · a ${String(d).replace('.',',')} km de você`;};
 /* ================= mapa estático real (CARTO escuro + OpenStreetMap) ================= */
 const TS=256,lon2x=(l,z)=>(l+180)/360*TS*2**z,lat2y=(a,z)=>{const s=Math.sin(a*Math.PI/180);return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*TS*2**z;};
-function staticMap(coords,W,H,o={}){if(!coords||coords.length<2)return'';const pad=o.pad||36;let z=o.maxZ||17,x0,x1,y0,y1;
+function staticMap(coords,W,H,o={}){if(!coords||coords.length<2)return'';const pad=o.pad||36;let z=Math.min(o.maxZ||16,16),x0,x1,y0,y1;
   for(;z>=3;z--){x0=1e18;x1=-1e18;y0=1e18;y1=-1e18;for(const p of coords){const x=lon2x(p[0],z),y=lat2y(p[1],z);if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}if(x1-x0<=W-2*pad&&y1-y0<=(o.fitH||H)-2*pad)break;}
   const ox=(x0+x1)/2-W/2,oy=(y0+y1)/2-H/2+(o.shiftY||0),n=2**z;let imgs='';
-  if(!o.noTiles)for(let tx=Math.floor(ox/TS);tx<=Math.floor((ox+W)/TS);tx++)for(let ty=Math.floor(oy/TS);ty<=Math.floor((oy+H)/TS);ty++){if(ty<0||ty>=n)continue;const wx=((tx%n)+n)%n;imgs+=`<img src="https://${'abcd'[(wx+ty)%4]}.basemaps.cartocdn.com/dark_all/${z}/${wx}/${ty}@2x.png" style="left:${(tx*TS-ox).toFixed(0)}px;top:${(ty*TS-oy).toFixed(0)}px" alt="" loading="lazy">`;}
+  if(!o.noTiles)for(let tx=Math.floor(ox/TS);tx<=Math.floor((ox+W)/TS);tx++)for(let ty=Math.floor(oy/TS);ty<=Math.floor((oy+H)/TS);ty++){if(ty<0||ty>=n)continue;const wx=((tx%n)+n)%n;const sty=`left:${(tx*TS-ox).toFixed(0)}px;top:${(ty*TS-oy).toFixed(0)}px`,E='https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_';imgs+=`<img src="${E}Base/MapServer/tile/${z}/${ty}/${wx}" style="${sty}" alt="" loading="lazy"><img class="lbl" src="${E}Reference/MapServer/tile/${z}/${ty}/${wx}" style="${sty}" alt="" loading="lazy">`;}
   const pts=coords.map(p=>(lon2x(p[0],z)-ox).toFixed(1)+','+(lat2y(p[1],z)-oy).toFixed(1));const a=pts[0].split(','),b=pts[pts.length-1].split(',');const sw=o.sw||4.5;
   const route=o.noRoute?'':`<polyline points="${pts.join(' ')}" fill="none" stroke="#C6F432" stroke-opacity=".28" stroke-width="${sw*3.2}" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${pts.join(' ')}" fill="none" stroke="#DCFF4A" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>${o.ends===false?'':`<circle cx="${a[0]}" cy="${a[1]}" r="${sw*1.4}" fill="#0A0B0A" stroke="#C6F432" stroke-width="${sw*.7}"/><circle cx="${b[0]}" cy="${b[1]}" r="${sw*1.6}" fill="#C6F432"/>`}`;
   return`<div class="smap ${o.blur?'blur':''}" style="width:${W}px;height:${H}px">${imgs}<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${route}${o.extra?o.extra(c=>[(lon2x(c[0],z)-ox),(lat2y(c[1],z)-oy)]):''}</svg></div>`;}
@@ -118,7 +121,7 @@ function routeOf(p){if(p.mine)return{c:p.track,names:p.where?[p.where]:[],km:p.k
 function locLabel(p,r){const m=p.loc||locMode(p.h);if(m==='hidden')return'Localização oculta';const city=p.mine&&p.city?p.city:myCity();if(m==='city')return city||'Cidade';const n=(r&&r.names||[]).slice(0,2).join(' → ');return(n?n+(city?' · ':''):'')+(city||'');}
 function mapInner(p,W,H,o={}){const r=routeOf(p);if(!r)return`<div class="pmload">Carregando mapa…</div>`;const m=p.loc||locMode(p.h);let c=r.c;if(p.hideEnds&&m==='exact')c=trim(c,200);
   const html=m==='hidden'?`<div style="position:absolute;inset:0">${trackSVG(c,W,H)}</div>`:staticMap(c,W,H,{blur:m==='city',maxZ:m==='city'?12:17,...o});
-  return html+(m==='hidden'?'':'<span class="osmc">© OpenStreetMap © CARTO</span>')+`<span class="pmloc">${ic(PIN,13)}<span>${esc(locLabel(p,r))}</span></span>`;}
+  return html+(m==='hidden'?'':'<span class="osmc">Esri · © OpenStreetMap</span>')+`<span class="pmloc">${ic(PIN,13)}<span>${esc(locLabel(p,r))}</span></span>`;}
 function fillMaps(id){const p=findPost(id);if(!p)return;$$(`[data-pm="${id}"]`).forEach(el=>{el.innerHTML=mapInner(p,+el.dataset.w,+el.dataset.h,el.dataset.tt?TTO:{});});const r=RT.get(id);if(r&&r.km)$$(`[data-pkm="${id}"]`).forEach(el=>el.textContent=String(Math.round(r.km*10)/10).replace('.',',')+' km');}
 const TTO={pad:70,fitH:520,shiftY:120,sw:6};
 RL.postMap=p=>{if(!p.track&&!p.mine&&!RT.has(p.id))needRoute(p);return`<div class="smapw" data-pm="${p.id}" data-w="440" data-h="210">${mapInner(p,440,210)}</div>`;};
