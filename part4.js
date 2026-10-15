@@ -69,7 +69,7 @@ function ingest(j){const pts=(arr,k)=>{if(!arr)return;for(let i=0;i<arr.length;i
   (j.fuel||[]).forEach(a=>{OSM.stations.set(a[0],{id:a[0],name:a[3]||a[4]||'Posto',brand:a[4]||'',p:[a[1],a[2]]});});}
 let drawT=0;const redraw=()=>{clearTimeout(drawT);drawT=setTimeout(()=>{drawSigns();drawFuel();},60);};
 function loadDTile(x,y){const k=x+'_'+y;if(dtiles.has(k))return dtiles.get(k);
-  const pr=didx.then(ix=>{if(!ix)return'none';if(!ix.has(k))return true;return fetch('data/osm/'+k+'.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>{ingest(j);redraw();return true;});}).catch(e=>{setTimeout(()=>dtiles.delete(k),20000);return false;});
+  const pr=didx.then(ix=>{if(!ix)return'none';if(!ix.has(k))return true;return fetch('data/osm/'+k+'.json?d='+((RL.osmData&&RL.osmData.t)||'')).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>{ingest(j);redraw();return true;});}).catch(e=>{setTimeout(()=>dtiles.delete(k),20000);return false;});
   dtiles.set(k,pr);return pr;}
 function loadArea(w,s,e,n,max=16){const ks=[];for(let x=Math.floor(w/DT);x*DT<e;x++)for(let y=Math.floor(s/DT);y*DT<n;y++)ks.push([x,y]);const cx=(w+e)/2/DT,cy=(s+n)/2/DT;ks.sort((a,b)=>Math.hypot(a[0]+.5-cx,a[1]+.5-cy)-Math.hypot(b[0]+.5-cx,b[1]+.5-cy));
   return Promise.all(ks.slice(0,max).map(([x,y])=>loadDTile(x,y)));}
