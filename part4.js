@@ -66,7 +66,7 @@ function ingest(j){const pts=(arr,k)=>{if(!arr)return;for(let i=0;i<arr.length;i
   pts(j.sig,'signal');pts(j.stop,'stop');pts(j.give,'giveway');
   (j.lim||[]).forEach(a=>{const id='l'+a[0]+','+a[1];OSM.nodes.set(id,{id,p:[a[0],a[1]],k:'limit',ms:a[2]});});
   (j.rad||[]).forEach(a=>{const id='r'+a[0]+','+a[1];OSM.nodes.set(id,{id,p:[a[0],a[1]],k:'radar',ms:a[2]||null});});
-  (j.fuel||[]).forEach(a=>{OSM.stations.set(a[0],{id:a[0],name:a[3]||a[4]||'Posto',brand:a[4]||'',p:[a[1],a[2]]});});}
+  (j.fuel||[]).forEach(a=>{OSM.stations.set(a[0],{id:a[0],name:a[3]||(a[4]?'Posto '+a[4]:'Posto'),brand:a[4]||'',p:[a[1],a[2]],fx:a[5]||''});});}
 let drawT=0;const redraw=()=>{clearTimeout(drawT);drawT=setTimeout(()=>{drawSigns();drawFuel();},60);};
 function loadDTile(x,y){const k=x+'_'+y;if(dtiles.has(k))return dtiles.get(k);
   const pr=didx.then(ix=>{if(!ix)return'none';if(!ix.has(k))return true;return fetch('data/osm/'+k+'.json?d='+((RL.osmData&&RL.osmData.t)||'')).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>{ingest(j);redraw();return true;});}).catch(e=>{setTimeout(()=>dtiles.delete(k),20000);return false;});
@@ -161,7 +161,7 @@ function simTick(ts){sim.raf=requestAnimationFrame(simTick);const m=getMap();con
 const FUELS=[['gas','Gasolina'],['adt','Aditivada'],['eta','Etanol'],['die','Diesel S10'],['gnv','GNV']];const FN=Object.fromEntries(FUELS);
 const BASE={gas:5.79,adt:5.99,eta:3.99,die:6.09,gnv:4.79};
 S.fuelRep=S.fuelRep||{};S.fills=S.fills||[];S.fuelType=S.fuelType||'gas';
-const has=(st,f)=>f==='gnv'?hsh(st.id+'gnv')<.22:f==='die'?hsh(st.id+'die')<.7:true;
+const FXC={gas:'g',adt:'a',eta:'e',die:'d',gnv:'n'};const has=(st,f)=>st.fx?(f==='gas'?/[ga]/.test(st.fx):st.fx.includes(FXC[f])):f==='gnv'?hsh(st.id+'gnv')<.22:f==='die'?hsh(st.id+'die')<.7:true;
 function price(st,f){const r=S.fuelRep[st.id+':'+f];if(r)return{v:r.v,t:r.t,by:S.me.handle};if(!has(st,f))return null;
   let v=BASE[f]+(hsh(st.id+f)-.5)*.5+(f==='adt'?(hsh(st.id+'gas')-.5)*.5:0);v=Math.floor(v*10)/10+.09;const P=C.P||[];return{v,t:Date.now()-(1+hsh(st.id+f+'t')*40)*3600e3,by:(P[Math.floor(hsh(st.id+f+'b')*P.length)]||{h:'rolê'}).h};}
 let stLoading=null;
