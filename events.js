@@ -39,8 +39,8 @@ const where=new Map();
 function placeName(e,cb){if(e.place)return cb(e.place);if(where.has(e.id))return cb(where.get(e.id));
   fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&accept-language=pt-BR&lat=${e.p[1]}&lon=${e.p[0]}`).then(r=>r.json()).then(j=>{const a=j.address||{};const n=[a.road,a.suburb||a.neighbourhood,a.city||a.town||a.village].filter(Boolean).join(', ');where.set(e.id,n);cb(n);}).catch(()=>{});}
 /* ---------- LISTA ---------- */
-SCREENS.events={tabbar:false,
- html(){const ctr=this.ctr||null;return`<div class="hdr"><button class="ib" data-back>${ic(I.back)}</button><h2>Eventos</h2><button class="btn sm" data-go="eventNew">${ic(I.plus,16)}Criar</button></div><div class="scroll">
+SCREENS.events={tab:'events',
+ html(){const ctr=this.ctr||null;return`<div class="hdr">${router.stack.length>1?`<button class="ib" data-back>${ic(I.back)}</button>`:''}<h1>Eventos</h1><button class="btn sm" data-go="eventNew">${ic(I.plus,16)}Criar</button></div><div class="scroll">
   <div class="row" style="gap:8px"><input class="inp" id="eq" placeholder="Buscar em outra cidade…" style="flex:1" value="${esc(this.cname||'')}"><button class="ib" data-on="near" style="width:50px;height:50px;border-radius:15px" aria-label="Perto de mim">${ic(I.loc,18)}</button></div>
   <div class="chips" id="er" style="margin-top:10px">${[10,30,100,300].map(k=>`<button class="chip ${(this.rad||30)===k?'lime':''}" data-r="${k}">até ${k} km</button>`).join('')}</div>
   <div class="chips" id="et" style="margin-top:8px"><button class="chip ${!this.ty?'lime':''}" data-t="">Todos</button>${Object.entries(TYPES).map(([k,[n,c]])=>`<button class="chip ${this.ty===k?'lime':''}" data-t="${k}"><i style="width:7px;height:7px;border-radius:9px;background:${c}"></i>${n}</button>`).join('')}</div>

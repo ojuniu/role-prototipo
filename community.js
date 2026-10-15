@@ -33,7 +33,7 @@ const TX=['Pampulha no fim de tarde, {h} hex novos','Fui buscar pão e voltei co
 const CM=['Brabo demais','Essa rota é boa mesmo','Bora junto semana que vem?','Devolve meus hex 😂','Que horas foi isso?','Top!','Tô chegando nesse ranking','Rosa Choque vai responder'];
 const FPOSTS=[0,6,1,3,4,2,7,5,8,10].map((pi,i)=>{const p=P[pi],r=rnd(i+11);const hx=4+Math.floor(r()*14);return{id:'fp'+i,h:p.h,txt:TX[i%TX.length].replace('{h}',hx),hex:hx,km:Math.round(8+r()*60),sec:Math.round(900+r()*4000),t:Date.now()-(i*2.7+.6)*3600e3,horn:Math.round(20+r()*260),track:genTrack(i),cm:[0,1,2].slice(0,1+Math.floor(r()*3)).map(k=>({h:P[(pi+k+2)%P.length].h,txt:CM[(i+k)%CM.length],t:Date.now()-(i*2.7+.3-k*.1)*3600e3}))};});
 S.follow=S.follow||{'duka':1,'bia.turbo':1,'lia.m':1};S.horn=S.horn||{};S.cm=S.cm||{};
-const myPosts=()=>S.posts.map(p=>{const r=S.rides.find(x=>x.id===p.ride)||{};return{id:p.id,h:S.me.handle,mine:true,txt:p.txt,hex:r.hex||0,km:r.dist?r.dist/1000:0,sec:r.sec||0,t:p.t,horn:p.horn||0,track:r.track,cm:[],loc:p.loc,where:p.where,city:p.city,hideEnds:p.hideEnds};});
+const myPosts=()=>S.posts.map(p=>{const r=S.rides.find(x=>x.id===p.ride)||{};return{id:p.id,h:S.me.handle,mine:true,txt:p.txt,hex:r.hex||0,km:r.dist?r.dist/1000:0,sec:r.sec||0,t:p.t,horn:p.horn||0,track:r.track,cm:[],loc:p.loc,where:p.where,city:p.city,hideEnds:p.hideEnds,kind:p.kind,media:p.media,car:p.car};});
 const allPosts=()=>[...myPosts(),...FPOSTS,...(RL.extraPosts||[])].sort((a,b)=>b.t-a.t);
 const postById=id=>allPosts().find(p=>p.id===id);
 const who=h=>h===S.me.handle?{h,n:S.me.name,crew:S.me.crew,g:ME_G,me:true,car:RL.featCar&&RL.featCar()?RL.featCar().model:''}:person(h);

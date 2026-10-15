@@ -335,7 +335,7 @@ SCREENS.profile={tab:'profile',
 /* ================= boot ================= */
 function boot(){
   $('#app').innerHTML=`<div id="mapHost"><div id="map"></div></div><div id="screens"></div>
-   <nav class="tabbar" id="tabbar"><button data-t="map" aria-label="Mapa">${ic(I.map,22,1.8)}</button><button data-t="feed" aria-label="Comunidade">${ic(I.people,22,1.8)}</button><button data-t="startRide" class="plus" aria-label="Novo rolê">${ic(I.plus,24,2.4)}</button><button data-t="garage" aria-label="Garagem">${ic(I.car,22,1.8)}</button><button data-t="profile" aria-label="Perfil">${ic(I.user,22,1.8)}</button></nav><div id="toast" class="toast"></div>`;
+   <nav class="tabbar" id="tabbar"><button data-t="map" aria-label="Mapa">${ic(I.map,22,1.8)}</button><button data-t="feed" aria-label="Comunidade">${ic(I.people,22,1.8)}</button><button data-t="startRide" class="plus" aria-label="Novo rolê">${ic(I.plus,24,2.4)}</button><button data-t="events" aria-label="Eventos">${ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',22,1.8)}</button><button data-t="garage" aria-label="Garagem">${ic(I.car,22,1.8)}</button><button data-t="profile" aria-label="Perfil">${ic(I.user,22,1.8)}</button></nav><div id="toast" class="toast"></div>`;
   $$('#tabbar button').forEach(b=>b.onclick=()=>{if(ride.on&&b.dataset.t!=='map'){toast('Encerre o rolê antes','dark');return;}router.tabTo(b.dataset.t);});
   try{initMap();}catch(e){console.error(e);}
   router.tabTo('map');
