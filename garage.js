@@ -43,7 +43,7 @@ function pixelate(c,r){const x=c.getContext('2d');const rx=Math.round(r.x*c.widt
   x.save();x.beginPath();x.rect(rx,ry,rw,rh);x.clip();x.imageSmoothingEnabled=false;x.drawImage(t,0,0,t.width,t.height,rx,ry,rw,rh);x.restore();}
 /* recorte de fundo (IA no aparelho, carregada sob demanda) */
 let bgLib=null;
-async function removeBg(c,onP){if(!bgLib)bgLib=await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/+esm');
+async function removeBg(c,onP){if(!bgLib)bgLib=await import('https://esm.sh/@imgly/background-removal@1.4.5');
   const fn=bgLib.removeBackground||bgLib.default;const blob=await new Promise(r=>c.toBlob(r,'image/png'));
   const out=await fn(blob,{progress:(k,cur,tot)=>onP&&onP(k,cur,tot),output:{format:'image/png'}});
   const u=URL.createObjectURL(out);const img=await loadImg(u);URL.revokeObjectURL(u);const o=document.createElement('canvas');o.width=c.width;o.height=c.height;o.getContext('2d').drawImage(img,0,0,o.width,o.height);return o;}
@@ -130,7 +130,7 @@ SCREENS.photo={tabbar:false,
   async bg(a){if(this.cut||this.busy)return;this.busy=true;const el=this.el,pg=$('#pg',el),pb=$('#pgb',el);$('#pgw',el).style.display='block';a.textContent='Recortando…';
    const t0=Date.now();try{const out=await removeBg(this.src,(k,cur,tot)=>{const f=tot?cur/tot:0;pg.textContent=k.startsWith('fetch')?`Baixando a IA de recorte (só na 1ª vez) · ${Math.round(f*100)}%`:'Recortando seu carro…';pb.style.width=Math.round((k.startsWith('fetch')?f*.8:.9)*100)+'%';});
     this.hist.push({cut:this.cut,blurs:this.blurs.slice()});this.cut=out;this.render();pb.style.width='100%';pg.textContent=`Fundo removido em ${((Date.now()-t0)/1000).toFixed(1)} s`;toast('Fundo removido');}
-   catch(e){console.error(e);$('#pgw',el).style.display='none';toast('Não deu pra recortar agora. A foto vai com moldura no mapa.','dark');}
+   catch(e){console.error(e);bgLib=null;$('#pgw',el).style.display='none';toast('Não deu pra recortar agora. A foto vai com moldura no mapa.','dark');}
    a.textContent='✦ Remover fundo';this.busy=false;},
   async save(a){if(!this.src)return;const p=this.params,c=carById(p.id);if(!c)return;a.disabled=true;a.textContent='Salvando…';
    let w=this.work();if(this.cut)w=trimAlpha(w);const url=toData(w);c[p.slot+'Orig']=url;c[p.slot+'Cut']=!!this.cut;c[p.slot]=await styled(url,c.style);
