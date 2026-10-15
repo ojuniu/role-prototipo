@@ -1,0 +1,130 @@
+name: Dados OSM (radares, semáforos, placas, postos)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
+  push:
+    paths: ['.github/workflows/osm-data.yml']
+permissions:
+  contents: write
+concurrency: osm-data
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ferramentas
+        run: sudo apt-get update -q && sudo apt-get install -y -q osmium-tool python3-pyosmium
+      - name: Baixar Brasil (Geofabrik)
+        run: curl -L --fail --retry 3 -o br.osm.pbf https://download.geofabrik.de/south-america/brazil-latest.osm.pbf
+      - name: Filtrar
+        run: |
+          osmium tags-filter br.osm.pbf n/highway=traffic_signals,speed_camera,stop,give_way n/crossing=traffic_signals n/crossing:signals=yes n/traffic_sign n/enforcement nwr/amenity=fuel r/type=enforcement w/maxspeed -o f.osm.pbf --overwrite
+          rm br.osm.pbf
+          ls -la f.osm.pbf
+      - name: Gerar blocos
+        run: |
+          cat > /tmp/osm_tiles.py <<'PY'
+          import osmium, json, sys, os, math, re, shutil, collections, datetime
+          src, out = sys.argv[1], sys.argv[2]
+          T = 0.25
+          def tk(lon, lat): return f"{math.floor(lon / T)}_{math.floor(lat / T)}"
+          def r5(x): return round(x, 5)
+          def num(v):
+              m = re.match(r"\s*(\d+)", str(v or ''))
+              return int(m.group(1)) if m else None
+          tiles = collections.defaultdict(lambda: collections.defaultdict(list))
+          radars = []
+          # passo 1: relações de fiscalização (radar) -> nó do equipamento
+          dev = {}
+          class R(osmium.SimpleHandler):
+              def relation(s, r):
+                  t = r.tags
+                  if t.get('type') != 'enforcement' or not re.search('maxspeed|mixed|average_speed', t.get('enforcement', '')): return
+                  ms = [m for m in r.members if m.type == 'n']
+                  d = [m for m in ms if m.role == 'device'] or ms
+                  if d: dev[d[0].ref] = num(t.get('maxspeed'))
+          R().apply_file(src)
+          LIM = re.compile(r'maxspeed|R-19', re.I)
+          STOP = re.compile(r'stop|R-1(?!\d)', re.I)
+          GIVE = re.compile(r'give_way|R-2(?!\d)', re.I)
+          class H(osmium.SimpleHandler):
+              def __init__(s):
+                  super().__init__(); s.cells = None; s.near = {}
+              def node(s, n):
+                  if not n.location.valid(): return
+                  lon, lat = n.location.lon, n.location.lat
+                  t = n.tags
+                  if n.id in dev:
+                      radars.append([lon, lat, num(t.get('maxspeed')) or dev[n.id]]); return
+                  if not len(t): return
+                  hw = t.get('highway', ''); ts = t.get('traffic_sign', '')
+                  k = tiles[tk(lon, lat)]
+                  if t.get('amenity') == 'fuel':
+                      k['fuel'].append([n.id, r5(lon), r5(lat), t.get('name') or t.get('brand') or '', t.get('brand') or t.get('operator') or ''])
+                  if hw == 'speed_camera' or t.get('enforcement') == 'maxspeed':
+                      radars.append([lon, lat, num(t.get('maxspeed'))])
+                  elif hw == 'traffic_signals' or t.get('crossing') == 'traffic_signals' or t.get('crossing:signals') == 'yes':
+                      k['sig'] += [r5(lon), r5(lat)]
+                  elif hw == 'stop' or STOP.search(ts):
+                      k['stop'] += [r5(lon), r5(lat)]
+                  elif hw == 'give_way' or GIVE.search(ts):
+                      k['give'] += [r5(lon), r5(lat)]
+                  elif LIM.search(ts) and num(t.get('maxspeed')):
+                      k['lim'].append([r5(lon), r5(lat), num(t.get('maxspeed'))])
+              def way(s, w):
+                  t = w.tags
+                  if t.get('amenity') == 'fuel':
+                      pts = [(x.lon, x.lat) for x in w.nodes if x.location.valid()]
+                      if pts:
+                          lon = sum(p[0] for p in pts) / len(pts); lat = sum(p[1] for p in pts) / len(pts)
+                          tiles[tk(lon, lat)]['fuel'].append([-w.id, r5(lon), r5(lat), t.get('name') or t.get('brand') or '', t.get('brand') or t.get('operator') or ''])
+                      return
+                  if 'highway' not in t: return
+                  ms = num(t.get('maxspeed'))
+                  if not ms: return
+                  if s.cells is None:
+                      s.cells = collections.defaultdict(list)
+                      for i, r in enumerate(radars):
+                          if r[2]: continue
+                          cx, cy = int(r[0] * 1000), int(r[1] * 1000)
+                          for dx in (-1, 0, 1):
+                              for dy in (-1, 0, 1): s.cells[(cx + dx, cy + dy)].append(i)
+                  if not s.cells: return
+                  pts = [(x.lon, x.lat) for x in w.nodes if x.location.valid()]
+                  cand = set()
+                  for p in pts: cand.update(s.cells.get((int(p[0] * 1000), int(p[1] * 1000)), ()))
+                  for i in cand:
+                      r = radars[i]; kx = 111320 * math.cos(math.radians(r[1])); ky = 110540
+                      for a, b in zip(pts, pts[1:]):
+                          ax, ay, bx, by = (a[0] - r[0]) * kx, (a[1] - r[1]) * ky, (b[0] - r[0]) * kx, (b[1] - r[1]) * ky
+                          dx, dy = bx - ax, by - ay; l = dx * dx + dy * dy
+                          u = max(0, min(1, -(ax * dx + ay * dy) / l)) if l else 0
+                          d = math.hypot(ax + u * dx, ay + u * dy)
+                          if d < 40 and d < s.near.get(i, (99, 0))[0]: s.near[i] = (d, ms)
+          h = H(); h.apply_file(src, locations=True)
+          for i, (d, ms) in h.near.items(): radars[i][2] = ms
+          for r in radars: tiles[tk(r[0], r[1])]['rad'].append([r5(r[0]), r5(r[1]), r[2] or 0])
+          if os.path.isdir(out): shutil.rmtree(out)
+          os.makedirs(out)
+          cnt = collections.Counter()
+          for k, v in tiles.items():
+              v = {a: b for a, b in v.items() if b}
+              if not v: continue
+              for a, b in v.items(): cnt[a] += len(b) // 2 if a in ('sig', 'stop', 'give') else len(b)
+              with open(os.path.join(out, k + '.json'), 'w') as f: json.dump(v, f, ensure_ascii=False, separators=(',', ':'))
+          ks = sorted(k for k in tiles if any(tiles[k].values()))
+          with open(os.path.join(out, 'index.json'), 'w') as f:
+              json.dump({'t': datetime.date.today().isoformat(), 'T': T, 'n': dict(cnt), 'tiles': ks}, f, separators=(',', ':'))
+          print(len(ks), 'tiles', dict(cnt))
+          PY
+          python3 /tmp/osm_tiles.py f.osm.pbf data/osm
+          rm f.osm.pbf
+      - name: Publicar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/osm
+          git commit -q -m "Dados OSM atualizados (radares, semáforos, placas, postos)" || exit 0
+          git push
