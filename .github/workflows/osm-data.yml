@@ -118,6 +118,17 @@ jobs:
                   out.append([lon, lat, num(row.get('velocidade_leve'))])
               return out
           def antt():
+              cache = 'data/antt.json'
+              for tent in range(3):
+                  r = antt1()
+                  if r:
+                      os.makedirs('data', exist_ok=True)
+                      json.dump(r, open(cache, 'w'), separators=(',', ':')); return r
+                  import time; time.sleep(20)
+              try:
+                  r = json.load(open(cache)); print('ANTT do cache', len(r)); return r
+              except Exception: return []
+          def antt1():
               try:
                   j = json.load(urllib.request.urlopen('https://dados.antt.gov.br/api/3/action/package_show?id=radar', timeout=60))
                   rs = [r for r in j['result']['resources'] if (r.get('format') or '').upper() == 'CSV']
@@ -149,7 +160,12 @@ jobs:
               try:
                   while True:
                       rq = urllib.request.Request(f'https://revendedoresapi.anp.gov.br/v1/combustivel?numeropagina={pg}', headers={'User-Agent': 'role-prototipo (github actions)'})
-                      j = json.load(urllib.request.urlopen(rq, timeout=180))
+                      j = None
+                      for tent in range(3):
+                          try: j = json.load(urllib.request.urlopen(rq, timeout=180)); break
+                          except Exception as e:
+                              if tent == 2: raise
+                              import time; time.sleep(15)
                       for d in j.get('data') or []:
                           try: lat = float(d['latitude']); lon = float(d['longitude'])
                           except Exception: continue
@@ -201,6 +217,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A data/osm
+          git add -A data
           git commit -q -m "Dados OSM atualizados (radares, semáforos, placas, postos)" || exit 0
           git push
