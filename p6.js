@@ -157,8 +157,8 @@ SCREENS.city={tabbar:false,clear:false,
  async mount(el,p){const name=p.name;fitName(el,name);setTimeout(()=>fitName(el,name),600);this.posts=postsFor(name);$('#cs1',el).textContent=this.posts.length;
   const ppl=T.people().filter(w=>hsh(name+w.h)<.45);this.ppl=ppl;$('#cs2',el).textContent=ppl.length;
   $$('#cyt [data-t]',el).forEach(b=>b.onclick=()=>{this.t=b.dataset.t;$$('#cyt [data-t]',el).forEach(x=>x.classList.toggle('on',x===b));this.body();});this.body();
-  try{const g=await geocode(name);if(!g)return;this.g=g;$('#cysub',el).textContent=g.sub||'Brasil';const W=el.clientWidth||400,d=.045;
-   $('#cym',el).innerHTML=RL.staticMap?RL.staticMap([[g.p[0]-d,g.p[1]-d*.7],[g.p[0]+d,g.p[1]+d*.7]],W,380,{noRoute:true,maxZ:14,pad:0}):'';
+  try{const g=await geocode(name);if(!g)return;this.g=g;$('#cysub',el).textContent=g.sub||'Brasil';const W=Math.round(($('.cyh',el)||el).getBoundingClientRect().width)||400,d=.06;
+   $('#cym',el).innerHTML=RL.staticMap?RL.staticMap([[g.p[0]-d,g.p[1]-d*.7],[g.p[0]+d,g.p[1]+d*.7]],W,380,{noRoute:true,maxZ:13,pad:0}):'';
    if(RL.osmLoad){await RL.osmLoad(g.p[0]-.06,g.p[1]-.06,g.p[0]+.06,g.p[1]+.06,4);let s=0,r=0;for(const n of RL.osmNodes().values()){if(Math.abs(n.p[0]-g.p[0])>.06||Math.abs(n.p[1]-g.p[1])>.06)continue;if(n.k==='signal')s++;else if(n.k==='radar')r++;}$('#cs3',el).textContent=s;$('#cs4',el).textContent=r;if(this.t==='via')this.body();}}catch(e){}},
  body(){const el=this.el,b=$('#cyb',el),t=this.t||'posts';
   if(t==='posts'){b.innerHTML=`<div class="cygrid">${this.posts.map((p,i)=>{let inner='',k='';
