@@ -18,7 +18,22 @@ const st=document.createElement('style');st.textContent=`
 .ttcs>div{flex:0 0 100%;height:100%;scroll-snap-align:center;position:relative;background:#0D0E0C}
 .ttcs img,.ttcs video{width:100%;height:100%;object-fit:cover}
 .ttcs img[data-cp]{opacity:0;transition:opacity .4s}.ttcs img.ok{opacity:1}
-.ttdots{position:absolute;left:0;right:0;top:calc(62px + var(--safeT));display:flex;justify-content:center;gap:5px;z-index:4}
+.ttdots{position:absolute;left:0;right:0;bottom:calc(96px + var(--safeB));display:flex;justify-content:center;gap:5px;z-index:4;pointer-events:none}
+.ttdots i{width:6px;height:6px;border-radius:9px;background:rgba(255,255,255,.4);transition:width .25s,background .25s}.ttdots i.on{background:#fff;width:16px}
+.vplay{position:absolute;left:50%;top:50%;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:99px;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;color:#fff;opacity:0;transform:scale(.7);transition:opacity .2s,transform .25s;pointer-events:none;z-index:3;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.vplay svg{margin-left:5px}.vs.paused .vplay{opacity:1;transform:none}
+.vbar{position:absolute;left:10px;right:10px;bottom:calc(80px + var(--safeB));height:22px;z-index:5;touch-action:none;cursor:pointer;display:flex;align-items:center}
+.vbar .tr{position:relative;flex:1;height:3px;border-radius:9px;background:rgba(255,255,255,.25);transition:height .15s}
+.vbar .fl{position:absolute;left:0;top:0;bottom:0;border-radius:9px;background:#fff}
+.vbar .kn{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:99px;background:#fff;opacity:0;transition:opacity .15s;box-shadow:0 1px 6px rgba(0,0,0,.5)}
+.vs.paused .vbar .tr,.vbar.act .tr{height:5px}.vs.paused .vbar .kn,.vbar.act .kn{opacity:1}
+.vtime{position:absolute;left:0;right:0;bottom:calc(110px + var(--safeB));text-align:center;font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.8);opacity:0;transition:opacity .15s;pointer-events:none;z-index:5;font-variant-numeric:tabular-nums}
+.vtime small{font-size:15px;opacity:.6;font-weight:700}.vs.seeking .vtime{opacity:1}.vs.seeking~*,.tti.seeking .ttinfo,.tti.seeking .ttside{opacity:.15}
+.vspd{position:absolute;right:12px;top:calc(108px + var(--safeT));z-index:4;height:30px;padding:0 10px;border-radius:99px;background:rgba(0,0,0,.45);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center}
+.ttinfo,.ttside{transition:opacity .2s}
+.cqs{margin-top:6px;border-radius:14px;background:#151614;border:1px solid var(--line2);overflow:hidden}
+.cqs button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px}.cqs button:last-child{border-bottom:none}
+.screen.fsl #tt{animation:swl .28s ease}.screen.fsr #tt{animation:swr .28s ease}
 .ttdots i{width:6px;height:6px;border-radius:9px;background:rgba(255,255,255,.4)}.ttdots i.on{background:#fff;width:16px}
 .ttmute{position:absolute;right:12px;top:calc(62px + var(--safeT));z-index:4;width:36px;height:36px;border-radius:99px;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff}
 .ttnew{width:38px;height:38px;border-radius:99px;background:var(--lime);color:#0A0B0A;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -45,33 +60,50 @@ const st=document.createElement('style');st.textContent=`
 `;document.head.appendChild(st);
 /* ================= BUSCA no mapa: Photon + Nominatim + categorias perto ================= */
 const CATS=[['fuel','Postos','amenity=fuel',RL.I.pump],['restaurant','Restaurantes','amenity~"^(restaurant|fast_food)$"','<path d="M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 2-2 6 0 8v10"/>'],['pharmacy','Farmácias','amenity=pharmacy','<path d="M12 5v14M5 12h14"/>'],['hospital','Hospitais','amenity~"^(hospital|clinic)$"','<path d="M4 21V5h16v16M9 9h6M12 6v6"/>'],['car_repair','Oficinas','shop~"^(car_repair|tyres|car_parts|motorcycle_repair)$"','<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'],['car_wash','Lava-jato','amenity=car_wash','<path d="M12 3c3 4 5 6.5 5 9a5 5 0 0 1-10 0c0-2.5 2-5 5-9z"/>'],['parking','Estacionar','amenity=parking','<path d="M7 21V3h6a5 5 0 0 1 0 10H7"/>'],['atm','Caixa 24h','amenity~"^(atm|bank)$"','<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>']];
-async function photon(q,c){const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${c[1]}&lon=${c[0]}&limit=12&location_bias_scale=0.5`);const j=await r.json();
+const OMT={fuel:['fuel'],restaurant:['restaurant','fast_food','food_court'],pharmacy:['pharmacy','chemist'],hospital:['hospital','clinic','doctors'],car_repair:['car_repair','tyres','car_parts','motorcycle_repair','car'],car_wash:['car_wash'],parking:['parking'],atm:['atm','bank']};
+const PTAG={fuel:['amenity:fuel'],restaurant:['amenity:restaurant','amenity:fast_food'],pharmacy:['amenity:pharmacy','shop:chemist'],hospital:['amenity:hospital','amenity:clinic'],car_repair:['shop:car_repair','shop:tyres','shop:car_parts'],car_wash:['amenity:car_wash'],parking:['amenity:parking'],atm:['amenity:atm','amenity:bank']};
+const PWORD={fuel:'posto',restaurant:'restaurante',pharmacy:'farmácia',hospital:'hospital',car_repair:'oficina',car_wash:'lava jato',parking:'estacionamento',atm:'banco'};
+const tmo=(ms,ctl)=>{const ac=ctl||new AbortController();setTimeout(()=>ac.abort(),ms);return ac.signal;};
+async function photon(q,c,sig,extra=''){const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${c[1]}&lon=${c[0]}&limit=15&location_bias_scale=0.3&zoom=12${extra}`,{signal:sig});const j=await r.json();
   return(j.features||[]).filter(f=>!f.properties.countrycode||f.properties.countrycode==='BR').map(f=>{const p=f.properties;const name=p.name||[p.street,p.housenumber].filter(Boolean).join(', ');return{name,addr:[p.name?p.street:'',p.district||p.locality,p.city||p.county,p.state].filter(Boolean).join(', '),p:f.geometry.coordinates,kind:p.osm_value};}).filter(x=>x.name);}
-async function nomi(q,c){const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=8&countrycodes=br&accept-language=pt-BR&viewbox=${c[0]-.3},${c[1]+.3},${c[0]+.3},${c[1]-.3}&q=${encodeURIComponent(q)}`);const j=await r.json();
+async function nomi(q,c,sig){const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=8&countrycodes=br&accept-language=pt-BR&viewbox=${c[0]-.3},${c[1]+.3},${c[0]+.3},${c[1]-.3}&q=${encodeURIComponent(q)}`,{signal:sig});const j=await r.json();
   return j.map(x=>{const parts=x.display_name.split(',');return{name:x.name||parts[0],addr:parts.slice(1,4).join(',').trim(),p:[+x.lon,+x.lat],kind:x.type};});}
-async function nearCat(cat,c){const q=`[out:json][timeout:20];(node[${cat[2]}](around:4000,${c[1]},${c[0]});way[${cat[2]}](around:4000,${c[1]},${c[0]}););out center 60;`;
-  const urls=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];let j=null;for(const u of urls){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q)});if(r.ok){j=await r.json();break;}}catch(e){}}if(!j)throw 0;
-  return j.elements.map(e=>{const t=e.tags||{};const p=e.type==='node'?[e.lon,e.lat]:e.center?[e.center.lon,e.center.lat]:null;return p&&{name:t.name||t.brand||cat[1].replace(/s$/,''),addr:[t['addr:street'],t['addr:housenumber']].filter(Boolean).join(', ')||cat[1],p,kind:cat[0]};}).filter(Boolean).sort((a,b)=>dist(c,a.p)-dist(c,b.p));}
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function localPOI(match,c,R=6000){const m=RL.getMap&&RL.getMap();const out=[];const seen=new Set();
+  try{for(const f of m.querySourceFeatures('openmaptiles',{sourceLayer:'poi'})){const p=f.properties;if(!match(p))continue;const g=f.geometry.type==='Point'?f.geometry.coordinates:null;if(!g)continue;const key=(p.name||'')+g[0].toFixed(4)+g[1].toFixed(4);if(seen.has(key))continue;seen.add(key);if(dist(c,g)>R)continue;
+   out.push({name:p.name||p.subclass||p.class,addr:[p['addr:street']||'',p.subclass&&p.subclass!==p.class?p.subclass.replace(/_/g,' '):''].filter(Boolean).join(' · ')||'Perto do mapa',p:g,kind:p.class});}}catch(e){}return out;}
+function localFuel(c,R=6000,q){const st=RL.osmStations?[...RL.osmStations().values()]:[];return st.filter(s=>dist(c,s.p)<R&&(!q||norm(s.name+' '+s.brand).includes(q))).map(s=>({name:s.name,addr:s.brand&&s.brand!==s.name?s.brand:'Posto de combustível',p:s.p,kind:'fuel'}));}
+async function nearCat(cat,c,onPart){const k=cat[0];const loc=[...(k==='fuel'?localFuel(c):[]),...localPOI(p=>OMT[k].includes(p.class)||OMT[k].includes(p.subclass),c)];if(loc.length&&onPart)onPart(loc);
+  let ph=[];try{const d=.06;ph=await photon(PWORD[k],c,tmo(5000),PTAG[k].map(t=>'&osm_tag='+t).join('')+`&bbox=${c[0]-d},${c[1]-d},${c[0]+d},${c[1]+d}`);}catch(e){}
+  let ov=[];if(loc.length+ph.length<4){const q=`[out:json][timeout:12];(node[${cat[2]}](around:4000,${c[1]},${c[0]});way[${cat[2]}](around:4000,${c[1]},${c[0]}););out center 60;`;
+   for(const u of['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter']){try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal:tmo(9000)});if(r.ok){const j=await r.json();ov=j.elements.map(e=>{const t=e.tags||{};const p=e.type==='node'?[e.lon,e.lat]:e.center?[e.center.lon,e.center.lat]:null;return p&&{name:t.name||t.brand||cat[1].replace(/s$/,''),addr:[t['addr:street'],t['addr:housenumber']].filter(Boolean).join(', ')||cat[1],p,kind:k};}).filter(Boolean);break;}}catch(e){}}}
+  return dedupe([...loc,...ph,...ov]).sort((a,b)=>dist(c,a.p)-dist(c,b.p)).slice(0,60);}
+function dedupe(l){const seen=[];return l.filter(x=>{if(seen.some(s=>norm(s.name)===norm(x.name)&&dist(s.p,x.p)<150))return false;seen.push(x);return true;});}
 SCREENS.search={tabbar:false,
- html(){return`<div class="hdr"><button class="ib" data-back>${ic(I.back)}</button><input id="q" class="inp" placeholder="Rua, lugar, posto, bairro, cidade…" autocomplete="off" style="flex:1"></div>
+ html(){return`<div class="hdr"><button class="ib" data-back>${ic(I.back)}</button><input id="q" class="inp" placeholder="Rua, lugar, posto, bairro, cidade…" autocomplete="off" enterkeyhint="search" style="flex:1"></div>
   <div class="scroll"><div class="chips" id="sc" style="margin-bottom:6px">${CATS.map(c=>`<button class="chip" data-c="${c[0]}">${ic(c[3],14)}${c[1]}</button>`).join('')}</div><div id="res"></div></div>`;},
- mount(el){const q=$('#q',el),res=$('#res',el),near=myPos();setTimeout(()=>q.focus(),200);
-  const draw=(items,title)=>{res.innerHTML=(title?`<div class="sec-t">${title}</div>`:'')+(items.length?`<div class="card list" style="padding:2px 10px">${items.map((x,i)=>`<button class="srow press" data-i="${i}"><span class="ib">${ic(x.kind==='fuel'?I.pump:x.kind==='recent'?RL.I.clock||I.flag:PIN,17)}</span><div style="flex:1;min-width:0"><div class="b" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.addr||'')}</div></div><span class="small muted">${x.p?fmtD(dist(near,x.p)):''}</span></button>`).join('')}</div>`:'<div class="empty">Nada encontrado</div>');
+ mount(el){const q=$('#q',el),res=$('#res',el),near=(()=>{const m=RL.getMap&&RL.getMap();const p=myPos();try{const c=m.getCenter().toArray();if(dist(c,p)>15000)return c;}catch(e){}return p;})();setTimeout(()=>q.focus(),200);
+  let items=[];const draw=(list,title,busy)=>{items=list;res.innerHTML=(title?`<div class="sec-t">${title}</div>`:'')+(list.length?`<div class="card list" style="padding:2px 10px">${list.map((x,i)=>`<button class="srow press" data-i="${i}"><span class="ib">${ic(x.kind==='fuel'?I.pump:x.kind==='recent'?RL.I.clock||I.flag:PIN,17)}</span><div style="flex:1;min-width:0"><div class="b" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.addr||'')}</div></div><span class="small muted">${x.kind==='recent'?'':fmtD(dist(near,x.p))}</span></button>`).join('')}</div>`:(busy?'':'<div class="empty">Nada encontrado</div>'))+(busy?'<div class="small muted" style="text-align:center;padding:12px">Buscando mais…</div>':'');
    $$('[data-i]',res).forEach(b=>b.onclick=()=>{const x=items[+b.dataset.i];S.recent=[{...x,kind:'recent'},...(S.recent||[]).filter(r=>r.name!==x.name)].slice(0,8);save();router.go('preview',{dest:{name:x.name,addr:x.addr,p:x.p}});});};
-  const home=()=>draw((S.recent||[]).slice(0,8),(S.recent||[]).length?'Recentes':'');home();
-  $$('#sc [data-c]',el).forEach(b=>b.onclick=async()=>{const cat=CATS.find(c=>c[0]===b.dataset.c);$$('#sc [data-c]',el).forEach(x=>x.classList.toggle('lime',x===b));res.innerHTML='<div class="empty">Buscando perto de você…</div>';try{draw(await nearCat(cat,near),cat[1]+' perto de você');}catch(e){res.innerHTML='<div class="empty">Sem conexão agora</div>';}});
-  let tm,seq=0;q.addEventListener('input',()=>{clearTimeout(tm);const v=q.value.trim();if(v.length<2){home();return;}
-   tm=setTimeout(async()=>{const my=++seq;res.innerHTML='<div class="empty">Buscando…</div>';const [a,b]=await Promise.all([photon(v,near).catch(()=>[]),nomi(v,near).catch(()=>[])]);if(my!==seq)return;
-    const seen=[],all=[...a,...b].filter(x=>{if(seen.some(s=>s.name===x.name&&dist(s.p,x.p)<150))return false;seen.push(x);return true;});
-    all.sort((x,y)=>{const dx=dist(near,x.p),dy=dist(near,y.p);const tx=x.name.toLowerCase().startsWith(v.toLowerCase())?0:1,ty=y.name.toLowerCase().startsWith(v.toLowerCase())?0:1;return(tx-ty)||(Math.log10(dx+50)-Math.log10(dy+50));});
-    draw(all.slice(0,20));},350);});}};
+  const home=()=>draw((S.recent||[]).slice(0,8),(S.recent||[]).length?'Recentes':'',false);home();
+  let seq=0,ctl=null;
+  $$('#sc [data-c]',el).forEach(b=>b.onclick=async()=>{const my=++seq;const cat=CATS.find(c=>c[0]===b.dataset.c);$$('#sc [data-c]',el).forEach(x=>x.classList.toggle('lime',x===b));draw([],'',true);
+   const l=await nearCat(cat,near,part=>{if(my===seq)draw(part.sort((a,b)=>dist(near,a.p)-dist(near,b.p)),cat[1]+' perto',true);});if(my===seq)draw(l,cat[1]+' perto',false);});
+  const rank=(v,l)=>{const nv=norm(v);return l.sort((x,y)=>{const tx=norm(x.name).startsWith(nv)?0:norm(x.name).includes(nv)?1:2,ty=norm(y.name).startsWith(nv)?0:norm(y.name).includes(nv)?1:2;return(tx-ty)||(Math.log10(dist(near,x.p)+50)-Math.log10(dist(near,y.p)+50));});};
+  let tm,tn;q.addEventListener('input',()=>{clearTimeout(tm);clearTimeout(tn);const v=q.value.trim();$$('#sc [data-c]',el).forEach(x=>x.classList.remove('lime'));if(v.length<2){seq++;home();return;}
+   const nv=norm(v);const my=++seq;const loc=dedupe([...localFuel(near,15000,nv),...localPOI(p=>norm(p.name).includes(nv),near,15000)]);let acc=loc;if(loc.length)draw(rank(v,loc).slice(0,20),'',true);
+   if(ctl)ctl.abort();ctl=new AbortController();const sig=ctl.signal;
+   tm=setTimeout(async()=>{try{const a=await photon(v,near,sig);if(my!==seq)return;acc=dedupe([...acc,...a]);draw(rank(v,acc).slice(0,20),'',true);}catch(e){}
+    if(my!==seq)return;tn=setTimeout(async()=>{let b=[];try{b=await nomi(v,near,tmo(6000));}catch(e){}if(my!==seq)return;acc=dedupe([...acc,...b]);draw(rank(v,acc).slice(0,20),'',false);},500);},180);});
+  q.addEventListener('keydown',e=>{if(e.key==='Enter'&&items[0]&&q.value.trim().length>=2){$('[data-i="0"]',res).click();}});}};
 /* ================= deslizar entre as abas ================= */
-const TABS=['map','feed','events','garage','profile'];
+const TABS=['map','feed','garage','profile'];const FT=['all','fol','crew'];
 (function(){let sx,sy,st0,ok=false;const host=()=>document.getElementById('screens');
  document.addEventListener('touchstart',e=>{const t=e.touches[0];ok=false;const cur=router.cur;if(!cur||cur.tabbar===false||e.touches.length>1)return;if(cur.clear)return;
-  if(e.target.closest('.chips,.stories,.ttcs,.gcar,input,textarea,.smapw,.brands,.swrow,.covergrid,.noswipe'))return;if(!host().contains(e.target))return;sx=t.clientX;sy=t.clientY;st0=Date.now();ok=true;},{passive:true});
+  const cs=e.target.closest('.ttcs');if(cs&&cs.scrollWidth>cs.clientWidth+4)return;if(e.target.closest('.chips,.stories,.vbar,.gcar,input,textarea,.smapw,.brands,.swrow,.covergrid,.noswipe'))return;if(!host().contains(e.target))return;sx=t.clientX;sy=t.clientY;st0=Date.now();ok=true;},{passive:true});
  document.addEventListener('touchend',e=>{if(!ok)return;ok=false;const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx)*.6||Date.now()-st0>700)return;
-  const cur=router.cur,i=TABS.indexOf(cur.tab||cur.name);if(i<0)return;const ni=i+(dx<0?1:-1);if(ni<0||ni>=TABS.length)return;if(ride.on&&TABS[ni]!=='map')return;
+  const cur=router.cur;if(cur.name==='feed'){const fi=FT.indexOf(cur.f||'all'),nf=fi+(dx<0?1:-1);if(nf>=0&&nf<FT.length){cur.f=FT[nf];router.render(cur,true,true);const s=host().querySelector('.screen');if(s)s.classList.add(dx<0?'fsl':'fsr');return;}}
+  const i=TABS.indexOf(cur.tab||cur.name);if(i<0)return;const ni=i+(dx<0?1:-1);if(ni<0||ni>=TABS.length)return;if(ride.on&&TABS[ni]!=='map')return;
   router.tabTo(TABS[ni]);const s=host().querySelector('.screen');if(s)s.classList.add(dx<0?'swl':'swr');},{passive:true});})();
 /* ================= mídia (IndexedDB) ================= */
 let dbp=null;const db=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open('role-media',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);}));
@@ -87,10 +119,21 @@ async function videos(){if(VIDS)return VIDS;try{const j=await(await fetch('https
 videos();
 /* ================= FEED em tela cheia nas 3 abas ================= */
 const MAXM=10;
+const vslide=v=>`<div class="vs">${v}<div class="vplay">${ic(I.play,34,2)}</div><div class="vtime"></div><div class="vbar"><div class="tr"><div class="fl"></div><i class="kn"></i></div></div></div>`;
+const mmss=t=>{t=Math.max(0,Math.floor(t||0));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+function wireVideo(vs){const v=$('video',vs),bar=$('.vbar',vs),fl=$('.fl',vs),kn=$('.kn',vs),tm=$('.vtime',vs);if(!v||vs.dataset.w)return;vs.dataset.w=1;
+  const upd=()=>{const d=v.duration||0,p=d?v.currentTime/d:0;fl.style.width=(p*100)+'%';kn.style.left=(p*100)+'%';};v.addEventListener('timeupdate',upd);v.addEventListener('loadedmetadata',upd);
+  let raf=0;const loop=()=>{upd();raf=v.paused?0:requestAnimationFrame(loop);};v.addEventListener('play',()=>{vs.classList.remove('paused');if(!raf)raf=requestAnimationFrame(loop);});v.addEventListener('pause',()=>{if(v.dataset.up)vs.classList.add('paused');});
+  const seekTo=e=>{const r=bar.getBoundingClientRect();const k=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));if(v.duration){v.currentTime=k*v.duration;upd();tm.innerHTML=`${mmss(v.currentTime)} <small>/ ${mmss(v.duration)}</small>`;}};
+  let wasP=false;bar.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();try{bar.setPointerCapture(e.pointerId);}catch(x){}bar.classList.add('act');vs.classList.add('seeking');vs.closest('.tti').classList.add('seeking');wasP=v.paused;v.pause();seekTo(e);});
+  bar.addEventListener('pointermove',e=>{if(bar.classList.contains('act'))seekTo(e);});
+  const up=()=>{if(!bar.classList.contains('act'))return;bar.classList.remove('act');vs.classList.remove('seeking');vs.closest('.tti').classList.remove('seeking');if(!wasP&&!v.dataset.up)v.play().catch(()=>{});};
+  bar.addEventListener('pointerup',up);bar.addEventListener('pointercancel',up);bar.addEventListener('click',e=>e.stopPropagation());}
+function togglePlay(vs){const v=$('video',vs);if(!v)return;if(v.paused){delete v.dataset.up;vs.classList.remove('paused');v.muted=!S.sound;v.play().catch(()=>{});}else{v.dataset.up=1;v.pause();vs.classList.add('paused');}}
 function mediaPost(p){const w=C.who(p.h)||{n:p.h,h:p.h};const cr=w.crew&&C.CREWS?C.CREWS[w.crew]:null;const key=p.model||(p.car?RL.modelKey(p.car):(w.car?RL.modelKey(w.car):''));
   const on=p.mine?!!(S.posts.find(x=>x.id===p.id)||{}).hornOn:!!S.horn[p.id];const n=p.mine?(S.posts.find(x=>x.id===p.id)||{}).horn||0:p.horn+(S.horn[p.id]?1:0);const cm=(p.cm||[]).length+((S.cm||{})[p.id]||[]).length;
-  let slides=[];if(p.media)slides=p.media.map(m=>m.type==='video'?`<div><video data-mk="${m.k}" muted loop playsinline preload="metadata"></video></div>`:`<div><img data-mk="${m.k}" alt=""></div>`);
-  else if(p.kind==='video')slides=[`<div><video src="${esc(p.vid)}" muted loop playsinline preload="none" onerror="this.closest('.tti').querySelector('.ttcs').innerHTML='<div>'+(this.dataset.fb||'')+'</div>'" data-fb="${esc(RL.picTag(key,p.id))}"></video></div>`];
+  let slides=[];if(p.media)slides=p.media.map(m=>m.type==='video'?vslide(`<video data-mk="${m.k}" muted loop playsinline preload="metadata"></video>`):`<div><img data-mk="${m.k}" alt=""></div>`);
+  else if(p.kind==='video')slides=[vslide(`<video src="${esc(p.vid)}" muted loop playsinline preload="none" onerror="this.closest('.tti').querySelector('.ttcs').innerHTML='<div>'+(this.dataset.fb||'')+'</div>'" data-fb="${esc(RL.picTag(key,p.id))}"></video>`)];
   else for(let k=0;k<(p.nph||1);k++)slides.push(`<div>${RL.picTag(key,p.id+':'+k)}</div>`);
   const hasVid=slides.some(s=>s.includes('<video'));
   const loc=p.loc==='hidden'?'':(p.where||p.city||(p.mine?'':''));
@@ -119,13 +162,14 @@ SCREENS.feed={tab:'feed',
   const tt=$('#tt',el);if(f==='crew'&&!S.me.crew){tt.innerHTML=`<div class="ttempty">${ic(I.people,40)}<div class="b" style="color:var(--tx)">Você ainda não tem crew</div><button class="btn sm" data-go="explore">Achar uma crew</button></div>`;return;}
   if(f==='fol'&&!Object.keys(S.follow).length){tt.innerHTML=`<div class="ttempty">${ic(I.people,40)}<div class="b" style="color:var(--tx)">Siga pilotos pra ver os rolês deles aqui</div><button class="btn sm" data-go="explore">Encontrar pilotos</button></div>`;return;}
   const mine=C.allPosts().filter(p=>p.mine).slice(0,5),base=C.FPOSTS.filter(p=>!flt||flt(p)).slice(0,4);
-  const obs=new IntersectionObserver(es=>es.forEach(e=>{const v=$$('video',e.target);v.forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;x.muted=!S.sound;x.play().catch(()=>{});}else x.pause();});}),{threshold:[0,.6,1]});
-  const add=list=>{const before=tt.children.length;tt.insertAdjacentHTML('beforeend',list.map(item).join(''));[...tt.children].slice(before).forEach(s=>{obs.observe(s);const cs=$('.ttcs',s);if(cs){cs.addEventListener('scroll',()=>{const i=Math.round(cs.scrollLeft/cs.clientWidth);$$('.ttdots i',s).forEach((d,k)=>d.classList.toggle('on',k===i));},{passive:true});}});
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{const v=$$('video',e.target);v.forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;if(x.dataset.up)return;x.muted=!S.sound;x.play().catch(()=>{});}else{x.pause();if(x.dataset.up){delete x.dataset.up;const w=x.closest('.vs');if(w)w.classList.remove('paused');}}});}),{threshold:[0,.6,1]});
+  const add=list=>{const before=tt.children.length;tt.insertAdjacentHTML('beforeend',list.map(item).join(''));[...tt.children].slice(before).forEach(s=>{obs.observe(s);$$('.vs',s).forEach(wireVideo);const cs=$('.ttcs',s);if(cs){cs.addEventListener('scroll',()=>{const i=Math.round(cs.scrollLeft/cs.clientWidth);$$('.ttdots i',s).forEach((d,k)=>d.classList.toggle('on',k===i));},{passive:true});}});
    list.forEach(p=>{if(!p.media&&p.kind==='ride'&&!p.mine)T.needRoute(p);});fillMedia(tt);};
   add([...mine,...base]);this.gi=this.gi||{};this.gi[f]=this.gi[f]||0;
   const more=()=>{const l=[];for(let k=0;k<5;k++){l.push(genMore(this.gi[f],f));this.gi[f]++;}add(l);};more();
   tt.addEventListener('scroll',()=>{if(tt.scrollTop+tt.clientHeight*3>tt.scrollHeight)more();},{passive:true});
-  let lt=0;tt.addEventListener('click',e=>{if(e.target.closest('button'))return;const now=Date.now();if(now-lt<320){const s=e.target.closest('.tti');if(s){const b=$('[data-on="horn"]',s);if(b&&!b.classList.contains('on'))b.click();const pop=$('.ttpop',s);pop.classList.add('on');setTimeout(()=>pop.classList.remove('on'),650);}}lt=now;});},
+  let lt=0,st1=0;tt.addEventListener('click',e=>{if(e.target.closest('button,.vbar'))return;const now=Date.now();if(now-lt<300){clearTimeout(st1);lt=0;const s=e.target.closest('.tti');if(s){const b=$('[data-on="horn"]',s);if(b&&!b.classList.contains('on'))b.click();const pop=$('.ttpop',s);pop.classList.add('on');setTimeout(()=>pop.classList.remove('on'),650);}return;}lt=now;
+   const vs=e.target.closest('.tti')&&(()=>{const s=e.target.closest('.tti');const cs=$('.ttcs',s);if(!cs)return null;const i=Math.round(cs.scrollLeft/(cs.clientWidth||1));const sl=cs.children[i];return sl&&sl.classList.contains('vs')?sl:null;})();if(vs){st1=setTimeout(()=>togglePlay(vs),280);}});},
  on:{...C.postHandlers,mute(a){S.sound=!S.sound;save();$$('#tt video').forEach(v=>v.muted=!S.sound);$$('#tt .ttmute').forEach(b=>b.innerHTML=ic(S.sound?I.vol:I.mute,18));}}};
 /* ================= POSTAR fotos / vídeos ================= */
 SCREENS.compose={tabbar:false,
@@ -163,7 +207,7 @@ SCREENS.chat={clear:true,tabbar:false,
  html(){const R=(this.R||10);const city=this.cname||(RL.myCity?RL.myCity():'')||'sua região';
   return`<div style="position:absolute;left:14px;right:14px;top:calc(14px + var(--safeT));display:flex;gap:10px;z-index:21"><button class="ib glass" data-back>${ic(I.back)}</button><div class="glasscard" style="flex:1;height:44px;border-radius:15px;display:flex;align-items:center;gap:8px;padding:0 14px;font-weight:800">${ic(CHAT,18)}<span data-city>${esc(city)}</span><span class="small muted" style="font-weight:600">· ${R} km</span></div></div>
   <div class="chatp"><div class="grab" style="margin:8px auto 4px"></div>
-   <div style="padding:0 16px"><div class="row" style="gap:8px"><input class="inp" id="cq" placeholder="Trocar cidade…" style="height:40px;flex:1" value=""><button class="ib" data-on="here" style="width:40px;height:40px" aria-label="Minha localização">${ic(I.loc,16)}</button></div>
+   <div style="padding:0 16px"><div class="row" style="gap:8px"><input class="inp" id="cq" placeholder="Trocar cidade ou bairro…" autocomplete="off" enterkeyhint="search" style="height:40px;flex:1" value=""><button class="ib" data-on="here" style="width:40px;height:40px" aria-label="Minha localização">${ic(I.loc,16)}</button></div><div id="cqs"></div>
    <div class="chips" id="cr" style="margin-top:8px">${[5,10,25,50].map(k=>`<button class="chip ${R===k?'lime':''}" data-r="${k}">${k} km</button>`).join('')}</div>
    <div class="small muted b" style="margin:10px 2px 6px">Pessoas perto · toque pra ver o perfil</div><div class="stories" id="cpl" style="padding-bottom:6px"></div></div>
    <div class="chatl" id="cl"></div>
@@ -178,10 +222,18 @@ SCREENS.chat={clear:true,tabbar:false,
    $('#cl',el).innerHTML=msgs.map(m=>{const w=m.h===S.me.handle?{me:true,n:S.me.name,h:m.h}:(C.who(m.h)||{n:m.h,h:m.h});return`<div class="cmsg ${w.me?'me':''}"><button data-on="prof" data-h="${esc(m.h)}">${RL.avatar2(w,36)}</button><div style="flex:1;min-width:0"><div class="small"><button data-on="prof" data-h="${esc(m.h)}" class="b" style="color:var(--tx)">${esc(w.n)}</button> <span class="muted">${w.me?'você':'a '+String(m.d||RL.distKm(m.h)).replace('.',',')+' km'} · ${ago(m.t)}</span></div><div class="tx">${esc(m.txt)}</div></div></div>`;}).join('');};
   draw();$('#ci',el).addEventListener('keydown',e=>{if(e.key==='Enter')this.on.send.call(this);});
   $$('#cr [data-r]',el).forEach(b=>b.onclick=()=>{this.R=+b.dataset.r;$$('#cr [data-r]',el).forEach(x=>x.classList.toggle('lime',x===b));const s=$('.glasscard .muted',el);if(s)s.textContent='· '+this.R+' km';this.mapReady();draw();});
-  let tm;$('#cq',el).addEventListener('input',e=>{clearTimeout(tm);const v=e.target.value.trim();if(v.length<3)return;tm=setTimeout(async()=>{try{const j=await(await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(v)}`)).json();if(j[0]){this.ctr=[+j[0].lon,+j[0].lat];this.cname=j[0].display_name.split(',')[0];const t=$('[data-city]',el);if(t)t.textContent=this.cname;this.mapReady();draw();}}catch(x){}},700);});},
+  const cq=$('#cq',el),box=$('#cqs',el);let tm,sq=0,sug=[];
+  const pick=x=>{sq++;clearTimeout(tm);this.ctr=x.p;this.cname=x.name;box.innerHTML='';cq.value='';cq.blur();const t=$('[data-city]',el);if(t)t.textContent=x.name;this.mapReady();draw();toast('Chat de '+x.name,'dark');};
+  const show=l=>{sug=l;box.innerHTML=l.length?`<div class="cqs">${l.map((x,i)=>`<button data-s="${i}">${ic(PIN,16)}<div style="flex:1;min-width:0"><div class="b">${esc(x.name)}</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.addr)}</div></div></button>`).join('')}</div>`:'';$$('[data-s]',box).forEach(b=>b.onclick=()=>pick(sug[+b.dataset.s]));};
+  cq.addEventListener('input',()=>{clearTimeout(tm);const v=cq.value.trim();const my=++sq;if(v.length<2){show([]);return;}
+   tm=setTimeout(async()=>{let l=[];try{const j=await(await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&limit=10&lat=${myPos()[1]}&lon=${myPos()[0]}&location_bias_scale=0.2&layer=city&layer=district&layer=locality`,{signal:tmo(5000)})).json();
+     l=(j.features||[]).filter(f=>(f.properties.countrycode||'BR')==='BR').map(f=>{const p=f.properties;return{name:p.name,addr:[p.city&&p.city!==p.name?p.city:'',p.county,p.state].filter(Boolean).join(', '),p:f.geometry.coordinates};});}catch(e){}
+    if(!l.length){try{const j=await(await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=6&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(v)}`,{signal:tmo(6000)})).json();l=j.map(x=>{const pr=x.display_name.split(',');return{name:x.name||pr[0],addr:pr.slice(1,4).join(',').trim(),p:[+x.lon,+x.lat]};});}catch(e){}}
+    if(my===sq)show(dedupe(l).slice(0,6));},250);});
+  cq.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(sug[0])pick(sug[0]);}});},
  leave(){const m=RL.getMap&&RL.getMap();if(m&&m.getLayer('chatR-f'))['chatR-f','chatR-l'].forEach(l=>m.setLayoutProperty(l,'visibility','none'));},
  on:{prof(a){a.dataset.h===S.me.handle?router.go('profile'):router.go('person',{h:a.dataset.h});},
-  here(){this.ctr=null;this.cname='';$('#cq',this.el).value='';const t=$('[data-city]',this.el);if(t)t.textContent=(RL.myCity&&RL.myCity())||'sua região';this.mapReady();this.draw();},
+  here(){this.ctr=null;this.cname='';$('#cq',this.el).value='';$('#cqs',this.el).innerHTML='';const t=$('[data-city]',this.el);if(t)t.textContent=(RL.myCity&&RL.myCity())||'sua região';this.mapReady();this.draw();},
   send(){const i=$('#ci',this.el),v=i.value.trim();if(!v)return;const key=chatKey(this.ctr||myPos());S.chat=S.chat||{};(S.chat[key]=S.chat[key]||[]).push({h:S.me.handle,txt:v,t:Date.now(),d:0});save();i.value='';this.draw();
    if(Math.random()<.7){const pool=T.people().filter(w=>RL.distKm(w.h)<=(this.R||10));const w=pool[Math.floor(Math.random()*pool.length)];if(w)setTimeout(()=>{(S.chat[key]=S.chat[key]||[]).push({h:w.h,txt:'@'+S.me.handle+' '+RP[Math.floor(Math.random()*RP.length)],t:Date.now(),d:RL.distKm(w.h)});save();if(router.cur&&router.cur.name==='chat')this.draw();else toast(`${w.n} respondeu no chat da região`,'dark');},3500+Math.random()*5000);}}}};
 /* botão e prévia do chat no mapa */

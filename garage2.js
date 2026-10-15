@@ -3,7 +3,22 @@
 const RL=window.__role;if(!RL)return;
 const {S,SCREENS,save,toast,sheet,ic,I,esc,$,$$,router,rebuildCar,fmtKm}=RL;
 const st=document.createElement('style');st.textContent=`
-.gcar{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 -16px;padding:0 16px;gap:12px}.gcar::-webkit-scrollbar{display:none}
+.gstage{position:relative;height:330px;border-radius:30px;overflow:hidden;background:radial-gradient(70% 55% at 50% 62%,rgba(198,244,50,.16),transparent 70%),linear-gradient(#151613,#0A0B09);border:1px solid var(--line);touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.gstage .gfloor{position:absolute;left:12%;right:12%;bottom:96px;height:26px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.75),transparent);filter:blur(4px)}
+.gstage .glines{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.025) 46px 47px);-webkit-mask-image:linear-gradient(transparent,#000 40%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 40%,#000 70%,transparent)}
+.gim{position:absolute;left:0;right:0;top:52px;bottom:96px;display:flex;align-items:center;justify-content:center;will-change:transform,opacity;transition:transform .6s cubic-bezier(.2,.9,.2,1),opacity .5s ease,filter .5s ease}
+.gstage.drag .gim{transition:none}
+.gim img{max-width:88%;max-height:100%;object-fit:contain;filter:drop-shadow(0 18px 18px rgba(0,0,0,.65));pointer-events:none;-webkit-user-drag:none}
+.gim img.real{width:92%;height:100%;max-width:none;object-fit:cover;border-radius:22px;filter:none;-webkit-mask-image:radial-gradient(70% 70% at 50% 50%,#000 50%,transparent 100%);mask-image:radial-gradient(70% 70% at 50% 50%,#000 50%,transparent 100%);opacity:0;transition:opacity .3s}.gim img.real.ok{opacity:1}
+.gim svg{width:70%;filter:invert(1);opacity:.14}
+.gtop{position:absolute;left:16px;right:16px;top:14px;display:flex;align-items:center;gap:8px;z-index:2}
+.gtxt{position:absolute;left:18px;right:16px;bottom:16px;display:flex;align-items:flex-end;gap:10px;z-index:2}
+.gtxt .gn{font-size:26px;font-weight:800;line-height:1.05;letter-spacing:-.5px}
+.ga{animation:gin .55s cubic-bezier(.2,.9,.2,1) both}
+@keyframes gin{from{opacity:0;transform:translateY(16px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+.gout>*{transition:opacity .16s ease,transform .16s ease,filter .16s ease;opacity:0!important;transform:translateY(-10px)!important;filter:blur(5px)}
+#gb.gfade{animation:gfd .4s ease both}@keyframes gfd{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.gcar{display:flex}
 .gslide{flex:0 0 calc(100% - 8px);scroll-snap-align:center;border-radius:28px;position:relative;overflow:hidden;height:300px;background:radial-gradient(80% 70% at 50% 75%,rgba(198,244,50,.18),transparent 70%),linear-gradient(#141512,#0B0C0A);border:1px solid var(--line)}
 .gslide .ph{position:absolute;left:0;right:0;top:56px;bottom:84px;display:flex;align-items:center;justify-content:center}
 .gslide .ph img{max-width:90%;max-height:100%;object-fit:contain;filter:drop-shadow(0 18px 18px rgba(0,0,0,.65))}
@@ -47,13 +62,28 @@ SCREENS.garage={tab:'garage',
  html(){const cs=S.cars;if(!cs.length)return`<div class="hdr"><h1>Garagem</h1></div><div class="scroll"><div class="card empty">Nenhum veículo ainda.<br><br><button class="btn" data-go="carForm">Adicionar veículo</button></div></div>`;
   let ci=this.ci;if(ci==null){ci=Math.max(0,cs.findIndex(c=>c.active));this.ci=ci;}ci=Math.min(ci,cs.length-1);
   return`<div class="hdr"><h1>Garagem</h1><span class="small muted">${cs.length}${S.plus?'':'/3'}</span><button class="ib" data-go="carForm" aria-label="Adicionar veículo">${ic(I.plus)}</button></div><div class="scroll" style="padding-top:0">
-  <div class="gcar" id="gc">${cs.map((c,i)=>{const h=health(c);return`<div class="gslide" data-i="${i}"><div class="top">${c.active?`<span class="badge" style="background:rgba(198,244,50,.16);color:var(--lime2)">No mapa</span>`:''}${S.me.feat===c.id?`<span class="badge" style="background:rgba(255,255,255,.08)">★ Destaque</span>`:''}<span style="flex:1"></span>${h!=null?`<span class="badge" style="background:rgba(0,0,0,.5)">Saúde ${h}%</span>`:''}</div>
-   <div class="ph">${carPic(c)}</div><div class="bot"><div style="flex:1;min-width:0"><div class="small muted">${esc(c.year||'')}${c.color?' · '+esc(c.color):''}</div><div style="font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-.4px">${esc(c.model)}</div></div><span class="odo">${String(odo(c)).padStart(6,'0')} km</span></div></div>`;}).join('')}</div>
+  <div class="gstage gcar" id="gc"><div class="glines"></div><div class="gfloor"></div><div class="gtop" id="gtop">${this.topH(cs[ci])}</div>${cs.map((c,i)=>`<div class="gim" data-i="${i}">${carPic(c)}</div>`).join('')}<div class="gtxt" id="gtx">${this.txtH(cs[ci],true)}</div></div>
   ${cs.length>1?`<div class="gdots">${cs.map((_,i)=>`<i class="${i===ci?'on':''}"></i>`).join('')}</div>`:''}
   <div id="gb"></div></div>`;},
- mount(el){const gc=$('#gc',el);if(!gc)return;const draw=()=>{$('#gb',el).innerHTML=this.body(S.cars[this.ci]);this.bind();};
-  requestAnimationFrame(()=>{const ch=gc.children[this.ci];if(ch)gc.scrollLeft=ch.offsetLeft-16;});let tm;
-  gc.addEventListener('scroll',()=>{clearTimeout(tm);tm=setTimeout(()=>{const w=gc.firstElementChild.offsetWidth+12;const i=Math.round(gc.scrollLeft/w);if(i!==this.ci&&S.cars[i]){this.ci=i;$$('.gdots i',el).forEach((d,k)=>d.classList.toggle('on',k===i));draw();}},90);},{passive:true});draw();},
+ topH(c){const h=health(c);return`${c.active?`<span class="badge ga" style="background:rgba(198,244,50,.16);color:var(--lime2)">No mapa</span>`:''}${S.me.feat===c.id?`<span class="badge ga" style="background:rgba(255,255,255,.08);animation-delay:.04s">★ Destaque</span>`:''}<span style="flex:1"></span>${h!=null?`<span class="badge ga" style="background:rgba(0,0,0,.5);animation-delay:.08s">Saúde ${h}%</span>`:''}`;},
+ txtH(c,still){const a=still?'':'ga';return`<div style="flex:1;min-width:0"><div class="small muted ${a}" style="animation-delay:.05s">${esc(c.year||'')}${c.color?' · '+esc(c.color):''}${c.type==='moto'?' · moto':''}</div><div class="gn ${a}" style="animation-delay:.1s">${esc(c.model)}</div></div><span class="odo ${a}" style="animation-delay:.16s" data-odo="${odo(c)}">${String(odo(c)).padStart(6,'0')} km</span>`;},
+ mount(el){const gc=$('#gc',el);if(!gc)return;const draw=(fx)=>{const gb=$('#gb',el);gb.innerHTML=this.body(S.cars[this.ci]);if(fx){gb.classList.remove('gfade');void gb.offsetWidth;gb.classList.add('gfade');}this.bind();};
+  const ims=$$('.gim',gc),n=ims.length;const place=dx=>{const W=gc.clientWidth||340;ims.forEach((e,i)=>{let p=(i-this.ci)+dx/W;const ap=Math.abs(p);e.style.transform=`translateX(${p*W*.82}px) scale(${1-Math.min(1,ap)*.32}) rotateY(${Math.max(-1,Math.min(1,p))*-18}deg)`;e.style.opacity=ap>1.4?0:1-Math.min(1,ap)*.8;e.style.filter=`blur(${Math.min(1,ap)*4}px)`;e.style.zIndex=10-Math.round(ap*3);});};
+  gc.style.perspective='900px';place(0);
+  const go=i=>{i=Math.max(0,Math.min(n-1,i));const prev=this.ci;place(0);if(i===prev){place(0);return;}const from=odo(S.cars[prev]);this.ci=i;place(0);$$('.gdots i',el).forEach((d,k)=>d.classList.toggle('on',k===i));
+   const tx=$('#gtx',el),tp=$('#gtop',el);tx.classList.add('gout');tp.classList.add('gout');navigator.vibrate&&navigator.vibrate(8);
+   setTimeout(()=>{const c=S.cars[i];tx.innerHTML=this.txtH(c);tp.innerHTML=this.topH(c);tx.classList.remove('gout');tp.classList.remove('gout');
+    const od=$('[data-odo]',tx),to=odo(c),t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/650),e=1-Math.pow(1-k,3);if(od)od.textContent=String(Math.round(from+(to-from)*e)).padStart(6,'0')+' km';if(k<1)requestAnimationFrame(step);};requestAnimationFrame(step);},170);
+   setTimeout(()=>draw(true),120);};
+  let sx=null,sy=0,dx=0,t0=0,lock=null;
+  gc.addEventListener('pointerdown',e=>{if(n<2)return;sx=e.clientX;sy=e.clientY;dx=0;lock=null;t0=Date.now();});
+  gc.addEventListener('pointermove',e=>{if(sx==null)return;const ddx=e.clientX-sx,ddy=e.clientY-sy;if(!lock){if(Math.abs(ddx)>8&&Math.abs(ddx)>Math.abs(ddy))lock='x';else if(Math.abs(ddy)>10){lock='y';sx=null;return;}else return;gc.classList.add('drag');try{gc.setPointerCapture(e.pointerId);}catch(x){}}
+   dx=ddx;if((this.ci===0&&dx>0)||(this.ci===n-1&&dx<0))dx*=.35;place(dx);});
+  const end=()=>{if(sx==null)return;sx=null;gc.classList.remove('drag');if(lock!=='x'){return;}this._dt=Date.now();const W=gc.clientWidth,v=dx/Math.max(1,Date.now()-t0);let i=this.ci;if(dx<-W*.18||v<-.45)i++;else if(dx>W*.18||v>.45)i--;go(i);};
+  gc.addEventListener('pointerup',end);gc.addEventListener('pointercancel',end);gc.addEventListener('lostpointercapture',end);
+  $$('.gdots i',el).forEach((d,k)=>{d.style.cursor='pointer';d.onclick=()=>go(k);});
+  ims.forEach((e,k)=>e.addEventListener('click',()=>{if(k!==this.ci&&Date.now()-(this._dt||0)>350)go(k);}));
+  draw();},
  body(c){const t=this.t||'geral',o=odo(c),h=health(c),its=items(c).map(it=>({it,s:mstate(c,it)})),late=its.filter(x=>x.s.st==='late'),soon=its.filter(x=>x.s.st==='soon');
   const cs=costs(c),m30=cs.filter(x=>x.t>Date.now()-30*864e5).reduce((a,x)=>a+x.v,0);
   const fills=(S.fills||[]).filter(f=>!f.car||f.car===c.id);const kmRole=S.rides.filter(r=>r.car===c.model).reduce((a,r)=>a+r.dist,0)/1000;const hexC=S.rides.filter(r=>r.car===c.model).reduce((a,r)=>a+r.hex,0);
