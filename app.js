@@ -15,6 +15,7 @@ const SEED={me:{name:'Juniu',handle:'juniu',crew:'Turbo Clan',level:14,xp:2340},
  hexes:{},rides:[],notifs:[{id:'n0',t:Date.now()-3600e3,txt:'Bem-vindo ao Rolê. Saia de carro com o app aberto e pinte sua cidade de lima.',read:false}],posts:[]};
 let S;try{S=JSON.parse(localStorage.getItem(KEY))||null}catch(e){S=null}
 if(!S)S=JSON.parse(JSON.stringify(SEED));
+if(S.hs!==70){S.hexes={};S.hs=70;}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Memória cheia: algumas fotos não foram salvas','dark')}};
 const activeCar=()=>S.cars.find(c=>c.active)||S.cars[0];
 /* ================= geo ================= */
@@ -26,7 +27,7 @@ const fmtKm=m=>(m/1000).toFixed(1).replace('.',',');
 const fmtT=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return h?`${h}h${String(m).padStart(2,'0')}`:`${m}:${String(ss).padStart(2,'0')}`;};
 const hhmm=d=>`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 /* hexágonos globais (Web Mercator, 110 m) */
-const HS=110,MX=lng=>R*rad(lng),MY=lat=>R*Math.log(Math.tan(Math.PI/4+rad(lat)/2)),ILNG=x=>deg(x/R),ILAT=y=>deg(2*Math.atan(Math.exp(y/R))-Math.PI/2);
+const HS=70,MX=lng=>R*rad(lng),MY=lat=>R*Math.log(Math.tan(Math.PI/4+rad(lat)/2)),ILNG=x=>deg(x/R),ILAT=y=>deg(2*Math.atan(Math.exp(y/R))-Math.PI/2);
 const hexKey=p=>{const x=MX(p[0]),y=MY(p[1]);const q=(Math.sqrt(3)/3*x-y/3)/HS,r=(2/3*y)/HS,s=-q-r;let rq=Math.round(q),rr=Math.round(r),rs=Math.round(s);const dq=Math.abs(rq-q),dr=Math.abs(rr-r),ds=Math.abs(rs-s);if(dq>dr&&dq>ds)rq=-rr-rs;else if(dr>ds)rr=-rq-rs;return rq+','+rr;};
 const hexPoly=k=>{const[q,r]=k.split(',').map(Number);const cx=HS*Math.sqrt(3)*(q+r/2),cy=HS*1.5*r;const pts=[];for(let i=0;i<=6;i++){const a=rad(60*i-30);pts.push([ILNG(cx+HS*.94*Math.cos(a)),ILAT(cy+HS*.94*Math.sin(a))]);}return pts;};
 const hexCenter=k=>{const[q,r]=k.split(',').map(Number);return[ILNG(HS*Math.sqrt(3)*(q+r/2)),ILAT(HS*1.5*r)];};
@@ -62,7 +63,7 @@ function addLayers(){
 }
 function hexFill(mode){const none=mode==='fog'?'rgba(9,10,8,0.82)':'rgba(0,0,0,0)';return['match',['get','o'],'mine','rgba(198,244,50,0.15)','new','rgba(214,255,80,0.36)','rival','rgba(255,106,61,0.15)','other','rgba(230,230,225,0.08)',none];}
 let newHexes=new Set();
-function refreshHexes(force){if(!mapReady)return;const c=map.getCenter().toArray();hexCenterKey=hexKey(c);const keys=hexesAround(c,map.getZoom()>15.5?9:13);
+function refreshHexes(force){if(!mapReady)return;const c=map.getCenter().toArray();hexCenterKey=hexKey(c);const keys=hexesAround(c,map.getZoom()>15.5?14:20);
   map.getSource('hex').setData(FC(keys.map(k=>({type:'Feature',properties:{o:newHexes.has(k)?'new':owner(k)},geometry:{type:'Polygon',coordinates:[hexPoly(k)]}}))));}
 function setHexMode(m){hexMode=m;if(mapReady)map.setPaintProperty('hex-fill','fill-color',hexFill(m));}
 function setRoute(coords){if(mapReady)map.getSource('route').setData(FC(coords&&coords.length>1?[{type:'Feature',geometry:{type:'LineString',coordinates:coords}}]:[]));}
@@ -173,7 +174,7 @@ SCREENS.map={clear:true,tab:'map',
    const p=gps.pos||S.lastPos||DEFAULT_CENTER;map.easeTo({center:p,zoom:15.4,pitch:45,bearing:0,duration:700});refreshHexes();this.count();
    this.posL=pp=>{if(carMarker)carMarker.setLngLat(pp);};gps.listeners.add(this.posL);
    this.mv=()=>this.count();map.on('moveend',this.mv);},
- count(){if(!mapReady)return;const keys=hexesAround(map.getCenter().toArray(),9);let m=0,r=0;keys.forEach(k=>{const o=owner(k);if(o==='mine')m++;else if(o==='rival')r++;});const a=$('#hMine'),b=$('#hRival');if(a){a.textContent=m;b.textContent=r;}},
+ count(){if(!mapReady)return;const keys=hexesAround(map.getCenter().toArray(),14);let m=0,r=0;keys.forEach(k=>{const o=owner(k);if(o==='mine')m++;else if(o==='rival')r++;});const a=$('#hMine'),b=$('#hRival');if(a){a.textContent=m;b.textContent=r;}},
  leave(){gps.listeners.delete(this.posL);map&&this.mv&&map.off('moveend',this.mv);stationMarkers.forEach(m=>m.remove());stationMarkers=[];},
  on:{terr(a){a.classList.toggle('lime');const on=a.classList.contains('lime');map.setLayoutProperty('hex-fill','visibility',on?'visible':'none');map.setLayoutProperty('hex-line','visibility',on?'visible':'none');},
   me(){const p=gps.pos||S.lastPos;if(!p){toast('Sem localização ainda','dark');startGPS();return;}map.easeTo({center:p,zoom:16,duration:600});},
@@ -340,5 +341,5 @@ function boot(){
   if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',boot);
-window.__role={S,ride,router};
+window.__role={S,ride,router,SCREENS,save,toast,sheet,ic,I,esc,$,$$,activeCar,rebuildCar,fmtKm,av};
 })();
