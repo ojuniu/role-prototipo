@@ -1,4 +1,4 @@
-name: Dados OSM (radares, semáforos, placas, postos)
+name: Dados OSM + ANTT (radares, semáforos, placas, postos)
 on:
   workflow_dispatch:
   schedule:
@@ -26,7 +26,7 @@ jobs:
       - name: Gerar blocos
         run: |
           cat > /tmp/osm_tiles.py <<'PY'
-          import osmium, json, sys, os, math, re, shutil, collections, datetime
+          import osmium, json, sys, os, math, re, shutil, collections, datetime, csv, io, urllib.request
           src, out = sys.argv[1], sys.argv[2]
           T = 0.25
           def tk(lon, lat): return f"{math.floor(lon / T)}_{math.floor(lat / T)}"
@@ -105,6 +105,36 @@ jobs:
                           if d < 40 and d < s.near.get(i, (99, 0))[0]: s.near[i] = (d, ms)
           h = H(); h.apply_file(src, locations=True)
           for i, (d, ms) in h.near.items(): radars[i][2] = ms
+          # radares oficiais das rodovias concedidas (ANTT, dados abertos, CC-BY)
+          def antt_parse(txt):
+              out = []
+              for row in csv.DictReader(io.StringIO(txt), delimiter=';'):
+                  row = {k.strip().lower(): (v or '').strip() for k, v in row.items() if k}
+                  if 'inativ' in row.get('situacao', '').lower(): continue
+                  try:
+                      lat = float(row['latitude'].replace(',', '.')); lon = float(row['longitude'].replace(',', '.'))
+                  except Exception: continue
+                  if not (-35 < lat < 6 and -75 < lon < -30): continue
+                  out.append([lon, lat, num(row.get('velocidade_leve'))])
+              return out
+          def antt():
+              try:
+                  j = json.load(urllib.request.urlopen('https://dados.antt.gov.br/api/3/action/package_show?id=radar', timeout=60))
+                  rs = [r for r in j['result']['resources'] if (r.get('format') or '').upper() == 'CSV']
+                  rs.sort(key=lambda r: (r.get('last_modified') or r.get('created') or ''), reverse=True)
+                  raw = urllib.request.urlopen(rs[0]['url'], timeout=120).read()
+                  try: txt = raw.decode('utf-8')
+                  except UnicodeDecodeError: txt = raw.decode('latin-1')
+                  out = antt_parse(txt); print('ANTT', len(out)); return out
+              except Exception as e:
+                  print('ANTT falhou', e); return []
+          seen = set((int(r[0] * 2000), int(r[1] * 2000)) for r in radars)
+          nA = 0
+          for r in antt():
+              c = (int(r[0] * 2000), int(r[1] * 2000))
+              if any((c[0] + dx, c[1] + dy) in seen for dx in (-1, 0, 1) for dy in (-1, 0, 1)): continue
+              seen.add(c); radars.append(r); nA += 1
+          print('radares ANTT novos', nA)
           for r in radars: tiles[tk(r[0], r[1])]['rad'].append([r5(r[0]), r5(r[1]), r[2] or 0])
           if os.path.isdir(out): shutil.rmtree(out)
           os.makedirs(out)
