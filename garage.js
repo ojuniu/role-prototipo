@@ -71,7 +71,7 @@ SCREENS.garage={tab:'garage',
   const rides=S.rides.filter(r=>r.car===c.model);const km=rides.reduce((a,r)=>a+r.dist,0);
   return`<div class="hdr"><h1>Garagem</h1><button class="ib" data-go="carForm" aria-label="Adicionar veículo">${ic(I.plus)}</button></div><div class="scroll">
   ${S.cars.length>1?`<div class="chips" style="margin-bottom:6px">${S.cars.map(x=>`<button class="chip ${x.id===c.id?'lime':''}" data-on="pick" data-id="${x.id}">${ic(x.type==='moto'?I.flag:I.car,14)}${esc(x.model.split(' ').slice(0,2).join(' '))}</button>`).join('')}</div>`:''}
-  <div class="plat">${c.front?`<img src="${c.front}" alt="">`:`<div class="muted small" style="position:relative;margin-bottom:40px">Sem foto ainda</div>`}</div>
+  <div class="plat">${c.front?`<img src="${c.front}" alt="">`:`<div style="position:relative;width:66%;margin-bottom:26px">${RL.silh?RL.silh(c.type):'Sem foto ainda'}</div>`}</div>
   <div class="row" style="margin:10px 4px 0;align-items:flex-end"><div style="flex:1"><div class="small muted">${esc(c.year||'')}${c.color?' · '+esc(c.color):''}${c.type==='moto'?' · moto':''}</div><div style="font-size:32px;font-weight:800;letter-spacing:-.8px;line-height:1.1">${esc(c.model)}</div></div><button class="btn sm sec" data-go="carForm" data-p='${JSON.stringify({id:c.id})}'>Editar</button></div>
   <div class="card stat3" style="margin-top:14px;padding:14px 0"><div><b>${c.kml?String(c.kml).replace('.',','):'—'}</b><span>km/l</span></div><div><b>${fmtKm(km)}</b><span>km no Rolê</span></div><div><b>${rides.length}</b><span>rolês</span></div></div>
   <div class="sec-t">Fotos do seu ${c.type==='moto'?'veículo':'carro'}</div>
