@@ -45,7 +45,7 @@ function pixelate(c,r){const x=c.getContext('2d');const rx=Math.round(r.x*c.widt
 let bgLib=null;
 async function removeBg(c,onP){if(!bgLib)bgLib=await import('https://esm.sh/@imgly/background-removal@1.4.5');
   const fn=bgLib.removeBackground||bgLib.default;const blob=await new Promise(r=>c.toBlob(r,'image/png'));
-  const out=await fn(blob,{progress:(k,cur,tot)=>onP&&onP(k,cur,tot),output:{format:'image/png'}});
+  const small=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||(navigator.deviceMemory||8)<=4;const out=await Promise.race([fn(blob,{model:small?'small':'medium',progress:(k,cur,tot)=>onP&&onP(k,cur,tot),output:{format:'image/png'}}),new Promise((_,no)=>setTimeout(()=>no(new Error('demorou demais')),120000))]);
   const u=URL.createObjectURL(out);const img=await loadImg(u);URL.revokeObjectURL(u);const o=document.createElement('canvas');o.width=c.width;o.height=c.height;o.getContext('2d').drawImage(img,0,0,o.width,o.height);return o;}
 /* estúdio: pintura por luminância + brilho/contraste */
 const sm=(a,b,v)=>{const t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t);};
@@ -110,7 +110,7 @@ SCREENS.photo={tabbar:false,
    <div id="ph0" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px;text-align:center">${c&&c[p.slot]?`<img src="${c[p.slot]}" style="max-width:70%;max-height:55%;object-fit:contain;opacity:.55">`:ic(I.cam,34)}<div class="small muted" style="max-width:240px">${rear?'Fique uns 3 metros atrás do carro, na altura da placa, e enquadre a traseira inteira':'Fique de frente pro carro, um pouco de lado, e enquadre o carro inteiro'}</div></div></div>
   <div id="pgw" style="display:none"><div class="small muted" id="pg" style="margin:10px 4px 0">Preparando…</div><div class="pgbar"><i id="pgb"></i></div></div>
   <div class="row" id="pick" style="gap:10px;margin-top:14px"><button class="btn" data-on="cam" style="flex:1">${ic(I.cam,18)}Tirar foto</button><button class="btn sec" data-on="gal" style="flex:1">Galeria</button></div>
-  <div id="tools" style="display:none"><div class="chips" style="margin-top:14px"><button class="chip lime" data-on="bg" id="bgB">✦ Remover fundo</button><button class="chip" data-on="blur" id="blB">Borrar placa</button><button class="chip" data-on="undo">Desfazer</button><button class="chip" data-on="gal">Trocar</button></div>
+  <div id="tools" style="display:none"><div class="chips" style="margin-top:14px"><button class="chip lime" data-on="bg" id="bgB">✦ Remover fundo</button><button class="chip" data-on="blur" id="blB">Borrar placa</button><button class="chip" data-on="lasso" id="laB">Recorte manual</button><button class="chip" data-on="undo">Desfazer</button><button class="chip" data-on="gal">Trocar</button></div>
    <div class="small muted" id="tip" style="margin:10px 4px 0;line-height:1.45">Remova o fundo pra seu carro aparecer recortado no mapa. Depois toque em “Borrar placa” e toque em cima dela.</div>
    <button class="btn" data-on="save" style="margin-top:16px">Salvar foto</button></div>
   ${p.then||p.fresh?`<button class="btn sec" data-on="skip" style="margin-top:12px">Pular por agora</button>`:''}
@@ -118,19 +118,25 @@ SCREENS.photo={tabbar:false,
  mount(el){this.hist=[];const onFile=async f=>{if(!f)return;try{const u=URL.createObjectURL(f);const img=await loadImg(u);URL.revokeObjectURL(u);this.src=toCanvas(img);this.cut=null;this.blurs=[];this.hist=[];this.show();}catch(e){toast('Não consegui abrir essa imagem','dark');}};
   $('#fCam',el).onchange=e=>onFile(e.target.files[0]);$('#fGal',el).onchange=e=>onFile(e.target.files[0]);
   $('#cv',el).addEventListener('click',e=>{if(!this.blurMode)return;const r=e.target.getBoundingClientRect();const x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
-   this.hist.push({cut:this.cut,blurs:this.blurs.slice()});this.blurs.push({x:Math.max(0,x-.14),y:Math.max(0,y-.06),w:.28,h:.12});this.render();this.setBlur(false);toast('Placa borrada');});},
+   this.hist.push({cut:this.cut,blurs:this.blurs.slice()});this.blurs.push({x:Math.max(0,x-.14),y:Math.max(0,y-.06),w:.28,h:.12});this.render();this.setBlur(false);toast('Placa borrada');});
+  const cv=$('#cv',el),pt=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width*cv.width,(e.clientY-r.top)/r.height*cv.height];};
+  cv.addEventListener('pointerdown',e=>{if(!this.lassoMode)return;e.preventDefault();cv.setPointerCapture(e.pointerId);this.pts=[pt(e)];});
+  cv.addEventListener('pointermove',e=>{if(!this.pts)return;this.pts.push(pt(e));const x=cv.getContext('2d');x.strokeStyle='#C6F432';x.lineWidth=Math.max(3,cv.width/150);x.lineCap='round';x.beginPath();const a=this.pts[this.pts.length-2],b=this.pts[this.pts.length-1];x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();});
+  cv.addEventListener('pointerup',()=>{const P=this.pts;this.pts=null;if(!P)return;this.setLasso(false);if(P.length<12){this.render();toast('Contorno muito curto','dark');return;}const base=this.cut||this.src,o=document.createElement('canvas');o.width=base.width;o.height=base.height;const x=o.getContext('2d');x.beginPath();P.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]));x.closePath();x.clip();x.drawImage(base,0,0);this.hist.push({cut:this.cut,blurs:this.blurs.slice()});this.cut=o;this.render();toast('Recortado');});},
  show(){const el=this.el;$('#ph0',el).style.display='none';$('#gd',el).style.display='none';$('#cv',el).style.display='block';$('#pick',el).style.display='none';$('#tools',el).style.display='block';this.render();},
  work(){const c=cloneC(this.cut||this.src);this.blurs.forEach(b=>pixelate(c,b));return c;},
  render(){const cv=$('#cv',this.el),w=this.work();cv.width=w.width;cv.height=w.height;cv.getContext('2d').drawImage(w,0,0);$('#bgB',this.el).classList.toggle('lime',!this.cut);},
+ setLasso(on){this.lassoMode=on;$('#cv',this.el).style.touchAction=on?'none':'';$('#laB',this.el).classList.toggle('lime',on);$('#stg',this.el).classList.toggle('blurmode',on);},
  setBlur(on){this.blurMode=on;$('#stg',this.el).classList.toggle('blurmode',on);$('#blB',this.el).classList.toggle('lime',on);},
  on:{bk(){router.stack.length>1?router.back():router.tabTo('garage');},cam(){$('#fCam',this.el).click();},gal(){$('#fGal',this.el).click();},
-  blur(){this.setBlur(!this.blurMode);if(this.blurMode)toast('Toque em cima da placa','dark');},
+  lasso(){this.setBlur(false);this.setLasso(!this.lassoMode);if(this.lassoMode)toast('Contorne o carro com o dedo, sem soltar','dark');},
+  blur(){this.setLasso(false);this.setBlur(!this.blurMode);if(this.blurMode)toast('Toque em cima da placa','dark');},
   undo(){const h=this.hist.pop();if(!h){toast('Nada pra desfazer','dark');return;}this.cut=h.cut;this.blurs=h.blurs;this.render();},
   skip(){const p=this.params;p.then?router.go('photo',{id:p.id,slot:p.then,fresh:true},{root:true}):router.tabTo('garage');},
   async bg(a){if(this.cut||this.busy)return;this.busy=true;const el=this.el,pg=$('#pg',el),pb=$('#pgb',el);$('#pgw',el).style.display='block';a.textContent='Recortando…';
    const t0=Date.now();try{const out=await removeBg(this.src,(k,cur,tot)=>{const f=tot?cur/tot:0;pg.textContent=k.startsWith('fetch')?`Baixando a IA de recorte (só na 1ª vez) · ${Math.round(f*100)}%`:'Recortando seu carro…';pb.style.width=Math.round((k.startsWith('fetch')?f*.8:.9)*100)+'%';});
     this.hist.push({cut:this.cut,blurs:this.blurs.slice()});this.cut=out;this.render();pb.style.width='100%';pg.textContent=`Fundo removido em ${((Date.now()-t0)/1000).toFixed(1)} s`;toast('Fundo removido');}
-   catch(e){console.error(e);bgLib=null;$('#pgw',el).style.display='none';toast('Não deu pra recortar agora. A foto vai com moldura no mapa.','dark');}
+   catch(e){console.error(e);bgLib=null;pb.style.width='0';pg.textContent='A IA não rodou neste aparelho ('+String(e&&e.message||e).slice(0,80)+'). Use o Recorte manual: contorne o carro com o dedo.';toast('IA de recorte falhou. Tente o recorte manual','dark');}
    a.textContent='✦ Remover fundo';this.busy=false;},
   async save(a){if(!this.src)return;const p=this.params,c=carById(p.id);if(!c)return;a.disabled=true;a.textContent='Salvando…';
    let w=this.work();if(this.cut)w=trimAlpha(w);const url=toData(w);c[p.slot+'Orig']=url;c[p.slot+'Cut']=!!this.cut;c[p.slot]=await styled(url,c.style);

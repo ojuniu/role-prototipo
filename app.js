@@ -55,13 +55,14 @@ function restyle(){for(const l of map.getStyle().layers||[]){const id=l.id.toLow
 const FC=f=>({type:'FeatureCollection',features:f});
 function addLayers(){
   map.addSource('hex',{type:'geojson',data:FC([])});map.addSource('route',{type:'geojson',data:FC([])});map.addSource('track',{type:'geojson',data:FC([])});
-  map.addLayer({id:'hex-fill',type:'fill',source:'hex',paint:{'fill-color':hexFill('normal')}});
-  map.addLayer({id:'hex-line',type:'line',source:'hex',paint:{'line-color':['match',['get','o'],'mine','#C6F432','new','#EFFF7A','rival','#FF6A3D','other','#BFC1BA','rgba(255,255,255,0.06)'],'line-width':['match',['get','o'],'new',2.6,'none',1,1.5],'line-opacity':['match',['get','o'],'none',1,.7]}});
+  const hb=((map.getStyle().layers||[]).find(l=>l.type==='fill-extrusion'||l.type==='symbol')||{}).id;
+  map.addLayer({id:'hex-fill',type:'fill',source:'hex',paint:{'fill-color':hexFill('normal'),'fill-opacity':['interpolate',['linear'],['zoom'],13,1,15.5,.75,17.5,.45]}},hb);
+  map.addLayer({id:'hex-line',type:'line',source:'hex',paint:{'line-color':['match',['get','o'],'mine','#C6F432','new','#EFFF7A','rival','#FF6A3D','other','#BFC1BA','rgba(255,255,255,0)'],'line-width':['match',['get','o'],'new',2.4,1.2],'line-opacity':['match',['get','o'],'none',0,'other',.25,['interpolate',['linear'],['zoom'],13,.75,17,.4]]}},hb);
   map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#C6F432','line-width':20,'line-blur':12,'line-opacity':.5}});
   map.addLayer({id:'route-core',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#D9FF4A','line-width':7}});
   map.addLayer({id:'track',type:'line',source:'track',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#EFFF7A','line-width':5,'line-opacity':.9}});
 }
-function hexFill(mode){const none=mode==='fog'?'rgba(9,10,8,0.82)':'rgba(0,0,0,0)';return['match',['get','o'],'mine','rgba(198,244,50,0.15)','new','rgba(214,255,80,0.36)','rival','rgba(255,106,61,0.15)','other','rgba(230,230,225,0.08)',none];}
+function hexFill(mode){const none=mode==='fog'?'rgba(9,10,8,0.62)':'rgba(0,0,0,0)';return['match',['get','o'],'mine','rgba(198,244,50,0.15)','new','rgba(214,255,80,0.36)','rival','rgba(255,106,61,0.15)','other','rgba(230,230,225,0.03)',none];}
 let newHexes=new Set();
 function refreshHexes(force){if(!mapReady)return;const c=map.getCenter().toArray();hexCenterKey=hexKey(c);const keys=hexesAround(c,map.getZoom()>15.5?14:20);
   map.getSource('hex').setData(FC(keys.map(k=>({type:'Feature',properties:{o:newHexes.has(k)?'new':owner(k)},geometry:{type:'Polygon',coordinates:[hexPoly(k)]}}))));}
@@ -341,5 +342,5 @@ function boot(){
   if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded',boot);
-window.__role={S,ride,router,SCREENS,save,toast,sheet,ic,I,esc,$,$$,activeCar,rebuildCar,fmtKm,av};
+window.__role={S,ride,router,SCREENS,save,toast,sheet,ic,I,esc,$,$$,activeCar,rebuildCar,fmtKm,av,trackSVG,ago,fmtT,getMap:()=>map};
 })();
