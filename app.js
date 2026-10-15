@@ -34,7 +34,7 @@ const hexCenter=k=>{const[q,r]=k.split(',').map(Number);return[ILNG(HS*Math.sqrt
 const hsh=k=>{let h=2166136261;for(const c of k){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967295;};
 const vn=(x,y,sd)=>{const xi=Math.floor(x),yi=Math.floor(y),fx=x-xi,fy=y-yi,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),h=(a,b)=>hsh(sd+a+':'+b);return(h(xi,yi)*(1-u)+h(xi+1,yi)*u)*(1-v)+(h(xi,yi+1)*(1-u)+h(xi+1,yi+1)*u)*v;};
 const OWN=new Map();const owner=k=>{if(S.hexes[k])return'mine';let o=OWN.get(k);if(o)return o;const[q,r]=k.split(',').map(Number);const x=q+r/2,y=r*.866;
-  const a=vn(x/7,y/7,'r')*.75+vn(x/2.5,y/2.5,'R')*.25,b=vn(x/6,y/6,'o')*.7+vn(x/2,y/2,'O')*.3;o=a>.68?'rival':(b>.74?'other':'none');if(OWN.size>60000)OWN.clear();OWN.set(k,o);return o;};
+  const a=vn(x/7,y/7,'r')*.75+vn(x/2.5,y/2.5,'R')*.25,b=vn(x/6,y/6,'o')*.7+vn(x/2,y/2,'O')*.3;o=a>.71?'rival':(b>.76?'other':'none');if(OWN.size>60000)OWN.clear();OWN.set(k,o);return o;};
 const CREWS={rival:{name:'Rosa Choque',color:'#FF6A3D'},other:{name:'Moto Norte',color:'#E2E3DE'}};
 let hexCov=null;
 function hexesInView(){const b=map.getBounds(),w=b.getWest(),e=b.getEast(),so=b.getSouth(),n=b.getNorth(),mx=(e-w)*.3,my=(n-so)*.3;hexCov=[w-mx,so-my,e+mx,n+my];
@@ -64,18 +64,25 @@ const FC=f=>({type:'FeatureCollection',features:f});
 function addLayers(){
   map.addSource('hex',{type:'geojson',data:FC([])});map.addSource('route',{type:'geojson',data:FC([])});map.addSource('track',{type:'geojson',data:FC([])});
   const hb=((map.getStyle().layers||[]).find(l=>l.type==='fill-extrusion'||l.type==='symbol')||{}).id;
-  map.addLayer({id:'hex-fill',type:'fill',source:'hex',minzoom:13.4,paint:{'fill-color':hexFill('normal'),'fill-opacity':['interpolate',['linear'],['zoom'],13.4,0,14,1,16,.85,18,.65]}},hb);
-  map.addLayer({id:'hex-glow',type:'line',source:'hex',minzoom:13.4,filter:['in',['get','o'],['literal',['mine','new','rival']]],paint:{'line-color':['match',['get','o'],'rival','#FF6A3D','#C6F432'],'line-width':['interpolate',['linear'],['zoom'],14,3,17,6],'line-blur':['interpolate',['linear'],['zoom'],14,2,17,4],'line-opacity':['interpolate',['linear'],['zoom'],13.4,0,14,.22,17,.16]}},hb);
-  map.addLayer({id:'hex-line',type:'line',source:'hex',minzoom:13.4,layout:{'line-join':'round'},paint:{'line-color':['match',['get','o'],'mine','#C6F432','new','#EFFF7A','rival','#FF7A4D','other','#D6D8D0','#E8EBE0'],'line-width':['interpolate',['linear'],['zoom'],14,['match',['get','o'],'new',2.2,'none',.6,1.3],17,['match',['get','o'],'new',3,'none',1,2]],'line-opacity':['interpolate',['linear'],['zoom'],13.4,0,14,['match',['get','o'],'none',.16,'other',.4,.95],17,['match',['get','o'],'none',.2,'other',.45,.85]]}},hb);
+  map.addLayer({id:'hex-fill',type:'fill',source:'hex',minzoom:13.4,filter:['==',['geometry-type'],'Polygon'],paint:{'fill-color':hexFill('normal'),'fill-opacity':['interpolate',['linear'],['zoom'],13.4,0,14.2,1]}},hb);
+  map.addLayer({id:'hex-glow',type:'line',source:'hex',minzoom:13.4,filter:['all',['in',['geometry-type'],['literal',['LineString','MultiLineString']]],['!=',['get','o'],'other']],layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':['match',['get','o'],'rival','#FF6A3D','#C6F432'],'line-width':['interpolate',['linear'],['zoom'],14,5,17,10],'line-blur':['interpolate',['linear'],['zoom'],14,4,17,8],'line-opacity':['interpolate',['linear'],['zoom'],13.4,0,14.2,.28]}},hb);
+  map.addLayer({id:'hex-line',type:'line',source:'hex',minzoom:13.4,filter:['in',['geometry-type'],['literal',['LineString','MultiLineString']]],layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':['match',['get','o'],'mine','#C6F432','new','#EFFF7A','rival','#FF7A4D','#BFC2B8'],'line-width':['interpolate',['linear'],['zoom'],14,1.6,17,2.6],'line-opacity':['interpolate',['linear'],['zoom'],13.4,0,14.2,['match',['get','o'],'other',.45,.95]]}},hb);
   map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#C6F432','line-width':20,'line-blur':12,'line-opacity':.5}});
   map.addLayer({id:'route-core',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#D9FF4A','line-width':7}});
   map.addLayer({id:'track',type:'line',source:'track',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#EFFF7A','line-width':5,'line-opacity':.9}});
 }
-function hexFill(mode){const none=mode==='fog'?'rgba(9,10,8,0.62)':'rgba(0,0,0,0)';return['match',['get','o'],'mine','rgba(198,244,50,0.2)','new','rgba(214,255,80,0.38)','rival','rgba(255,106,61,0.18)','other','rgba(230,230,225,0.06)',none];}
+function hexFill(mode){const none=mode==='fog'?'rgba(9,10,8,0.62)':'rgba(0,0,0,0)';return['match',['get','o'],'mine','rgba(198,244,50,0.16)','new','rgba(214,255,80,0.38)','rival','rgba(255,106,61,0.13)','other','rgba(230,230,225,0.04)',none];}
 let newHexes=new Set();
+const HD=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+function hexV(q,r,i){const cx=HS*Math.sqrt(3)*(q+r/2),cy=HS*1.5*r,a=rad(60*i-30);return[ILNG(cx+HS*Math.cos(a)),ILAT(cy+HS*Math.sin(a))];}
 function refreshHexes(force){if(!mapReady)return;if(map.getZoom()<13.4){hexCov=null;map.getSource('hex').setData(FC([]));return;}const keys=hexesInView();
-  map.getSource('hex').setData(FC(keys.map(k=>({type:'Feature',properties:{o:newHexes.has(k)?'new':owner(k)},geometry:{type:'Polygon',coordinates:[hexPoly(k)]}}))));}
-function setHexMode(m){hexMode=m;if(mapReady)map.setPaintProperty('hex-fill','fill-color',hexFill(m));}
+  const own=k=>newHexes.has(k)?'new':owner(k);const polys=[],lines={};const fog=hexMode==='fog';
+  for(const k of keys){const o=own(k);if(o==='none'){if(fog)polys.push({type:'Feature',properties:{o},geometry:{type:'Polygon',coordinates:[hexPoly(k)]}});continue;}
+   const[q,r]=k.split(',').map(Number);const ring=[];for(let i=0;i<=6;i++)ring.push(hexV(q,r,i%6));polys.push({type:'Feature',properties:{o},geometry:{type:'Polygon',coordinates:[ring]}});
+   for(let i=0;i<6;i++){const nk=(q+HD[i][0])+','+(r+HD[i][1]);if(own(nk)===o)continue;(lines[o]=lines[o]||[]).push([hexV(q,r,i),hexV(q,r,(i+1)%6)]);}}
+  const fs=polys.concat(Object.entries(lines).map(([o,segs])=>({type:'Feature',properties:{o},geometry:{type:'MultiLineString',coordinates:segs}})));
+  map.getSource('hex').setData(FC(fs));}
+function setHexMode(m){const ch=m!==hexMode;hexMode=m;if(mapReady){map.setPaintProperty('hex-fill','fill-color',hexFill(m));if(ch)refreshHexes();}}
 function setRoute(coords){if(mapReady)map.getSource('route').setData(FC(coords&&coords.length>1?[{type:'Feature',geometry:{type:'LineString',coordinates:coords}}]:[]));}
 function setTrack(coords){if(mapReady)map.getSource('track').setData(FC(coords&&coords.length>1?[{type:'Feature',geometry:{type:'LineString',coordinates:coords}}]:[]));}
 function carEl(){const c=activeCar(),d=document.createElement('div');d.className='carmk';const m=S.settings.marker;

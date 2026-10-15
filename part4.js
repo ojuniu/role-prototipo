@@ -43,7 +43,7 @@ RL.horn=horn;
 document.addEventListener('click',e=>{const b=e.target.closest('[data-on="horn"]');if(b&&!b.classList.contains('on'))horn();},true);
 /* ---------- OpenStreetMap (Overpass): radares, semáforos, PARE, placas de velocidade, limites das vias, postos ---------- */
 const OV='https://overpass-api.de/api/interpreter';
-const OSM={nodes:new Map(),ways:new Map(),stations:new Map()};RL.osmStations=()=>OSM.stations;let stNew=0,stOn=false;const tiles=new Map();
+const OSM={nodes:new Map(),ways:new Map(),stations:new Map()};RL.osmStations=()=>OSM.stations;RL.osmNodes=()=>OSM.nodes;RL.osmLoad=(...a)=>loadArea(...a);let stNew=0,stOn=false;const tiles=new Map();
 const OVS=[OV,'https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];let ovChain=Promise.resolve();
 function ovq(q,tries=3){const run=async()=>{let err;for(let t=0;t<tries;t++){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),20000);try{const r=await fetch(OVS[t%OVS.length],{method:'POST',body:'data='+encodeURIComponent(q),signal:ac.signal});clearTimeout(tm);if(r.ok)return await r.json();err=new Error('overpass '+r.status);}catch(e){clearTimeout(tm);err=e;}await new Promise(r=>setTimeout(r,500*(t+1)));}throw err;};const p=ovChain.then(run,run);ovChain=p.catch(()=>{});return p;}
 const kindOf=t=>{const h=t.highway,ts=String(t.traffic_sign||'');if(h==='speed_camera'||t.enforcement==='maxspeed')return'radar';if(h==='traffic_signals')return'signal';if(h==='stop'||/stop|R-1(?!\d)/i.test(ts))return'stop';if(h==='give_way'||/give_way|R-2(?!\d)/i.test(ts))return'giveway';if(/maxspeed|R-19/i.test(ts)&&parseInt(t.maxspeed))return'limit';return null;};
@@ -122,8 +122,22 @@ function alertSheet(a){const mine=a.by===S.me.handle;sheet(`<div class="row"><sp
   const rm=()=>{S.alerts=S.alerts.filter(x=>x!==a);save();drawAlerts();close();};
   if(mine)$('#ad',w).onclick=()=>{rm();toast('Alerta removido','dark');};
   else{$('#ay',w).onclick=()=>{a.ok++;a.t=Date.now();save();close();toast('Valeu por confirmar');};$('#an',w).onclick=()=>{a.no=(a.no||0)+1;if(a.no>=2||a.ok<=1)rm();else{save();close();}toast('Valeu! Atualizado','dark');};}});}
+/* pontos adicionados pela comunidade (onde o OpenStreetMap ainda não tem) */
+const UP=[['signal','Semáforo'],['radar','Radar'],['fuel','Posto'],['stop','PARE']];
+const upIcon=k=>{const im=drawIcon(k==='fuel'?'fuel':k);if(!im)return'';const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(im.data.buffer),im.width,im.height),0,0);return c.toDataURL();};
+S.upoi=S.upoi||[];
+function ingestUP(){for(const u of S.upoi){if(u.k==='fuel')OSM.stations.set(u.id,{id:u.id,name:u.name||'Posto',brand:'',p:u.p,user:1});else OSM.nodes.set(u.id,{id:u.id,p:u.p,k:u.k,ms:u.ms||null,user:1});}}
+ingestUP();
+function addUP(k){const m=getMap();const p=(router.cur&&router.cur.name==='map'&&m)?m.getCenter().toArray():myPos();
+  const fin=(extra={})=>{const u={id:'u'+Date.now(),k,p,t:Date.now(),...extra};S.upoi.push(u);save();ingestUP();drawSigns();drawFuel();toast(`${UP.find(x=>x[0]===k)[1]} adicionado. Valeu por mapear!`);};
+  if(k==='radar')sheet(`<div style="font-size:20px;font-weight:800">Limite do radar</div><div class="chips" style="margin-top:12px">${[30,40,50,60,70,80,90,100,110].map(v=>`<button class="chip" data-v="${v}">${v} km/h</button>`).join('')}</div>`,(w,close)=>{$$('[data-v]',w).forEach(b=>b.onclick=()=>{close();fin({ms:+b.dataset.v});});});
+  else if(k==='fuel')sheet(`<div style="font-size:20px;font-weight:800">Nome do posto</div><input class="inp" id="un" placeholder="Ex.: Posto Trevo" style="margin-top:12px"><button class="btn" id="uo" style="margin-top:12px">Adicionar</button>`,(w,close)=>{$('#uo',w).onclick=()=>{close();fin({name:$('#un',w).value.trim()||'Posto'});};});
+  else fin();}
 function newAlert(){sheet(`<div style="font-size:20px;font-weight:800">O que está acontecendo?</div><div class="small muted" style="margin-top:2px">O alerta fica no lugar onde você está agora</div>
-  <div class="agrid">${Object.entries(AT).map(([k,v])=>`<button data-k="${k}"><span class="ai" style="background:${v[1]}">${aIcon(k,22)}</span>${v[0]}</button>`).join('')}</div>`,(w,close)=>{
+  <div class="agrid">${Object.entries(AT).map(([k,v])=>`<button data-k="${k}"><span class="ai" style="background:${v[1]}">${aIcon(k,22)}</span>${v[0]}</button>`).join('')}</div>
+  <div style="font-size:16px;font-weight:800;margin-top:18px">Falta algo no mapa?</div><div class="small muted" style="margin-top:2px">Fica no centro do mapa (ou onde você está) e aparece pra todo mundo da região</div>
+  <div class="agrid" style="grid-template-columns:repeat(4,1fr)">${UP.map(([k,n])=>`<button data-u="${k}"><span class="ai" style="background:#1B1D18;padding:6px"><img src="${upIcon(k)}" style="width:100%;height:100%;object-fit:contain"></span>${n}</button>`).join('')}</div>`,(w,close)=>{
+  $$('[data-u]',w).forEach(b=>b.onclick=()=>{close();addUP(b.dataset.u);});
   $$('[data-k]',w).forEach(b=>b.onclick=()=>{const p=myPos();S.alerts.push({id:'a'+Date.now(),ty:b.dataset.k,p:[p[0],p[1]],t:Date.now(),by:S.me.handle,ok:1});save();drawAlerts();close();toast(`Alerta de ${AT[b.dataset.k][0].toLowerCase()} enviado. Valeu!`);navigator.vibrate&&navigator.vibrate(20);});});}
 /* ---------- trânsito simulado: outros pilotos rodando nas ruas ---------- */
 const sim={cars:[],roads:[],raf:0,lt:0,on:true};

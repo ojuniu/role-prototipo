@@ -16,9 +16,9 @@ const st=document.createElement('style');st.textContent=`
 @keyframes swl{from{transform:translateX(26%);opacity:.3}to{transform:none;opacity:1}}@keyframes swr{from{transform:translateX(-26%);opacity:.3}to{transform:none;opacity:1}}
 .ttcs{position:absolute;inset:0;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}.ttcs::-webkit-scrollbar{display:none}
 .ttcs>div{flex:0 0 100%;height:100%;scroll-snap-align:center;position:relative;background:#0D0E0C}
-.ttcs img,.ttcs video{width:100%;height:100%;object-fit:cover}
+.ttcs>div{background:#000!important}.ttcs img,.ttcs video{width:100%;height:100%;object-fit:contain;background:#000}
 .ttcs img[data-cp]{opacity:0;transition:opacity .4s}.ttcs img.ok{opacity:1}
-.ttdots{position:absolute;left:0;right:0;bottom:calc(96px + var(--safeB));display:flex;justify-content:center;gap:5px;z-index:4;pointer-events:none}
+.ttdots{display:flex;justify-content:center;gap:5px;margin:0 -64px 12px 0;pointer-events:none}
 .ttdots i{width:6px;height:6px;border-radius:9px;background:rgba(255,255,255,.4);transition:width .25s,background .25s}.ttdots i.on{background:#fff;width:16px}
 .vplay{position:absolute;left:50%;top:50%;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:99px;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;color:#fff;opacity:0;transform:scale(.7);transition:opacity .2s,transform .25s;pointer-events:none;z-index:3;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .vplay svg{margin-left:5px}.vs.paused .vplay{opacity:1;transform:none}
@@ -110,12 +110,17 @@ let dbp=null;const db=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open
 const putM=async(k,b)=>{const d=await db();return new Promise((ok,no)=>{const tx=d.transaction('m','readwrite');tx.objectStore('m').put(b,k);tx.oncomplete=ok;tx.onerror=()=>no(tx.error);});};
 const urlCache=new Map();const getURL=async k=>{if(urlCache.has(k))return urlCache.get(k);const d=await db();const b=await new Promise(ok=>{const r=d.transaction('m').objectStore('m').get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null);});if(!b)return null;const u=URL.createObjectURL(b);urlCache.set(k,u);return u;};
 async function fillMedia(root){for(const el of $$('[data-mk]',root)){if(el.dataset.done)continue;el.dataset.done=1;const u=await getURL(el.dataset.mk);if(u){el.src=u;el.classList.add('ok');}}}
-async function shrink(f){if(!f.type.startsWith('image/'))return f;const u=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u;});const k=Math.min(1,1440/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);return await new Promise(ok=>c.toBlob(b=>ok(b||f),'image/jpeg',.85));}
+async function shrink(f){if(!f.type.startsWith('image/'))return f;const u=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u;});const k=Math.min(1,1920/Math.max(img.width,img.height),1080/Math.min(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);return await new Promise(ok=>c.toBlob(b=>ok(b||f),'image/jpeg',.85));}
 /* vídeos de carros (Wikimedia Commons) */
-let VIDS=null;try{VIDS=JSON.parse(localStorage.getItem('role.vids')||'null');}catch(e){}
-async function videos(){if(VIDS)return VIDS;try{const j=await(await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent('filetype:video car driving road')+'&gsrlimit=30&prop=videoinfo&viprop=url|derivatives|size&format=json&origin=*')).json();
-  VIDS=Object.values((j.query||{}).pages||{}).map(p=>{const v=p.videoinfo&&p.videoinfo[0];if(!v||v.width<v.height||/\.(ogg|oga|mp3)$/i.test(v.url))return null;const ds=(v.derivatives||[]).filter(d=>/video/.test(d.type));const mp4=ds.find(d=>/mp4/.test(d.type));const wm=ds.filter(d=>/webm/.test(d.type)).sort((a,b)=>(b.height||0)-(a.height||0)).find(d=>(d.height||0)<=720);return(mp4||wm||{src:v.url}).src;}).filter(Boolean).slice(0,16);
-  localStorage.setItem('role.vids',JSON.stringify(VIDS));}catch(e){VIDS=[];}return VIDS;}
+let VIDS=null;try{VIDS=JSON.parse(localStorage.getItem('role.vids2')||'null');}catch(e){}
+const VCATS=['Videos of automobiles','Videos of driving','Videos of auto racing','Videos of motorcycles','Dashcam videos'];const VBAD=/tornado|meteor|war|attack|protest|crash|accident|police|nebula|military|missile|地震|kino|1923|19[0-4]\d/i;
+async function videos(){if(VIDS&&VIDS.length)return VIDS;const out=[];
+  for(const c of VCATS){try{const j=await(await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=categorymembers&gcmtype=file&gcmlimit=50&gcmtitle='+encodeURIComponent('Category:'+c)+'&prop=videoinfo&viprop=url|derivatives|size|mediatype&format=json&origin=*')).json();
+    for(const p of Object.values((j.query||{}).pages||{})){const v=p.videoinfo&&p.videoinfo[0];if(!v||!v.width||VBAD.test(p.title)||/\.(ogg|oga|mp3|wav|flac)$/i.test(v.url))continue;if(v.duration&&(v.duration<4||v.duration>240))continue;
+     const ds=(v.derivatives||[]).filter(d=>/video/.test(d.type));const pick=ds.filter(d=>(d.height||0)<=1080&&(d.height||0)>=360).sort((a,b)=>(b.height||0)-(a.height||0));const d=pick.find(x=>/mp4/.test(x.type))||pick[0];if(!d)continue;
+     out.push({src:d.src,w:v.width,h:v.height,t:p.title.replace(/^File:/,'').replace(/\.[a-z0-9]+$/i,'')});}}catch(e){}}
+  VIDS=out.sort((a,b)=>hsh(a.src)-hsh(b.src)).slice(0,60);if(VIDS.length)try{localStorage.setItem('role.vids2',JSON.stringify(VIDS));}catch(e){}return VIDS;}
+const vsrc=v=>typeof v==='string'?v:v.src;
 videos();
 /* ================= FEED em tela cheia nas 3 abas ================= */
 const MAXM=10;
@@ -133,31 +138,36 @@ function togglePlay(vs){const v=$('video',vs);if(!v)return;if(v.paused){delete v
 function mediaPost(p){const w=C.who(p.h)||{n:p.h,h:p.h};const cr=w.crew&&C.CREWS?C.CREWS[w.crew]:null;const key=p.model||(p.car?RL.modelKey(p.car):(w.car?RL.modelKey(w.car):''));
   const on=p.mine?!!(S.posts.find(x=>x.id===p.id)||{}).hornOn:!!S.horn[p.id];const n=p.mine?(S.posts.find(x=>x.id===p.id)||{}).horn||0:p.horn+(S.horn[p.id]?1:0);const cm=(p.cm||[]).length+((S.cm||{})[p.id]||[]).length;
   let slides=[];if(p.media)slides=p.media.map(m=>m.type==='video'?vslide(`<video data-mk="${m.k}" muted loop playsinline preload="metadata"></video>`):`<div><img data-mk="${m.k}" alt=""></div>`);
-  else if(p.kind==='video')slides=[vslide(`<video src="${esc(p.vid)}" muted loop playsinline preload="none" onerror="this.closest('.tti').querySelector('.ttcs').innerHTML='<div>'+(this.dataset.fb||'')+'</div>'" data-fb="${esc(RL.picTag(key,p.id))}"></video>`)];
+  else if(p.kind==='video')slides=[vslide(`<video src="${esc(vsrc(p.vid))}" muted loop playsinline preload="none" onerror="this.closest('.tti').querySelector('.ttcs').innerHTML='<div>'+(this.dataset.fb||'')+'</div>'" data-fb="${esc(RL.picTag(key,p.id))}"></video>`)];
   else for(let k=0;k<(p.nph||1);k++)slides.push(`<div>${RL.picTag(key,p.id+':'+k)}</div>`);
   const hasVid=slides.some(s=>s.includes('<video'));
   const loc=p.loc==='hidden'?'':(p.where||p.city||(p.mine?'':''));
   return`<section class="tti" data-id="${p.id}"><div class="ttbg"><div class="ttcs">${slides.join('')}</div></div><div class="ttshade"></div><div class="ttpop">${ic(I.horn,90,2)}</div>
-  ${slides.length>1?`<div class="ttdots">${slides.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div>`:''}${hasVid?`<button class="ttmute" data-on="mute">${ic(I.mute,18)}</button>`:''}
+  ${hasVid?`<button class="ttmute" data-on="mute">${ic(I.mute,18)}</button>`:''}
   <div class="ttside"><button data-on="prof" data-h="${esc(p.h)}">${RL.avatar2(w.me?{me:true}:w,50)}</button>
    <button class="ttbtn ${on?'on':''}" data-on="horn" data-id="${p.id}">${ic(I.horn,30,2)}<span>${n}</span></button>
    <button class="ttbtn" data-on="cmts" data-id="${p.id}">${ic(I.cmt,28,2)}<span>${cm}</span></button>
    <button class="ttbtn" data-on="sharep" data-id="${p.id}">${ic(I.share,28,2)}<span>Enviar</span></button>
    ${key?`<button class="ttcar" data-on="model" data-m="${esc(key)}">${w.me&&RL.featCar()&&RL.featCar().front?`<img class="ok" src="${RL.featCar().front}" style="object-fit:contain">`:RL.picTag(key,p.h)}</button>`:''}</div>
-  <div class="ttinfo"><button class="b" data-on="prof" data-h="${esc(p.h)}" style="font-size:16px;color:#fff;text-align:left">${esc(w.n)} ${cr?`<span style="color:${cr.c};font-weight:700">· ${esc(w.crew)}</span>`:''}</button>
+  <div class="ttinfo">${slides.length>1?`<div class="ttdots">${slides.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div>`:''}<button class="b" data-on="prof" data-h="${esc(p.h)}" style="font-size:16px;color:#fff;text-align:left">${esc(w.n)} ${cr?`<span style="color:${cr.c};font-weight:700">· ${esc(w.crew)}</span>`:''}</button>
    <div class="small" style="opacity:.85;margin-top:2px">@${esc(p.h)} · ${ago(p.t)}${RL.distTxt?RL.distTxt(p.h):''}${key?` · <button data-on="model" data-m="${esc(key)}" class="carlink" style="color:#fff">${esc(key)}</button>`:''}</div>
    <div class="tttxt">${esc(p.txt||'')}</div>${loc?`<span class="pmloc">${ic(PIN,13)}<span>${esc(loc)}</span></span>`:''}
-   ${!p.mine?`<div class="small" style="opacity:.5;margin-top:8px">${p.kind==='video'?'Vídeo':'Foto'}: Wikimedia Commons</div>`:''}</div></section>`;}
+   ${!p.mine?`<div class="small" style="opacity:.5;margin-top:8px">${p.kind==='video'?'Vídeo de exemplo'+(p.vtitle?' · '+esc(p.vtitle.slice(0,40)):''):'Foto'}: Wikimedia Commons (CC)</div>`:''}</div></section>`;}
 function item(p){return(p.media||p.kind==='photo'||p.kind==='video')?mediaPost(p):T.ttItem(p);}
 const made=new Map();const getP=i=>{if(!made.has(i))made.set(i,T.genPost(i));return made.get(i);};
 function genMore(i,f){let p=getP(i);if(f&&f!=='all'){const allow=f==='fol'?Object.keys(S.follow):T.people().filter(w=>w.crew&&w.crew===S.me.crew).map(w=>w.h);if(allow.length&&!allow.includes(p.h)){const id=p.id+f;let q=made.get(id);if(!q){q={...p,id,h:allow[Math.floor(hsh(id)*allow.length)],cm:[]};const w=C.who(q.h);if(w&&w.car)q.model=RL.modelKey(w.car);made.set(id,q);RL.extraPosts.push(q);}p=q;}}
   if(p.kind==='photo'&&!p.nph){const r=hsh('n'+p.id);p.nph=r<.45?1:r<.7?2:r<.88?3:4;}
-  if(p.kind!=='ride'&&!p.vid&&hsh('v'+p.id)<.22&&VIDS&&VIDS.length){p.kind='video';p.vid=VIDS[Math.floor(hsh('vv'+p.id)*VIDS.length)];}return p;}
+  if(p.kind!=='ride'&&!p.vid&&hsh('v'+p.id)<.38&&VIDS&&VIDS.length){p.kind='video';p.vid=VIDS[Math.floor(hsh('vv'+p.id)*VIDS.length)];if(p.vid.t)p.vtitle=p.vid.t;}return p;}
+function feedWire(tt){const obs=new IntersectionObserver(es=>es.forEach(e=>{$$('video',e.target).forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;if(x.dataset.up)return;x.muted=!S.sound;x.play().catch(()=>{});}else x.pause();});}),{threshold:[0,.6,1]});
+  [...tt.children].forEach(s=>{obs.observe(s);$$('.vs',s).forEach(wireVideo);const cs=$('.ttcs',s);if(cs)cs.addEventListener('scroll',()=>{const i=Math.round(cs.scrollLeft/cs.clientWidth);$$('.ttdots i',s).forEach((d,k)=>d.classList.toggle('on',k===i));},{passive:true});});fillMedia(tt);
+  let st1=0,lt=0;tt.addEventListener('click',e=>{if(e.target.closest('button,.vbar,.pmloc'))return;const now=Date.now();if(now-lt<300){clearTimeout(st1);lt=0;const s=e.target.closest('.tti');if(s){const b=$('[data-on="horn"]',s);if(b&&!b.classList.contains('on'))b.click();const pop=$('.ttpop',s);pop.classList.add('on');setTimeout(()=>pop.classList.remove('on'),650);}return;}lt=now;
+   const s=e.target.closest('.tti');const cs=s&&$('.ttcs',s);if(!cs)return;const sl=cs.children[Math.round(cs.scrollLeft/(cs.clientWidth||1))];if(sl&&sl.classList.contains('vs'))st1=setTimeout(()=>togglePlay(sl),280);});}
+RL.feedItem=p=>{if(!p.media&&p.kind==='ride'&&!p.mine)T.needRoute(p);return item(p);};RL.feedWire=feedWire;
 const FILT={all:null,fol:p=>p.mine||!!S.follow[p.h],crew:p=>{if(p.mine)return true;const w=C.who(p.h);return!!(w&&w.crew&&w.crew===S.me.crew);}};
 function tabsHTML(f){return`<div class="seg" id="ff">${[['all','Para você'],['fol','Seguindo'],['crew','Minha crew']].map(([k,t])=>`<button data-k="${k}" class="${f===k?'on':''}">${t}</button>`).join('')}</div>`;}
 SCREENS.feed={tab:'feed',
  html(){const f=this.f||'all';const unread=S.notifs.filter(n=>!n.read).length;
-  return`<div class="ttwrap"><div class="tt" id="tt"></div><div class="tthdr">${tabsHTML(f)}<button class="ttnew" data-go="compose" aria-label="Postar">${ic(I.plus,20,2.6)}</button><button class="ib" data-go="explore" aria-label="Buscar">${ic(I.search,18)}</button><button class="ib" data-go="notifs" style="position:relative" aria-label="Notificações">${ic(I.bell,18)}${unread?'<span class="dotn"></span>':''}</button></div></div>`;},
+  return`<div class="ttwrap"><div class="tt" id="tt"></div><div class="tthdr">${tabsHTML(f)}<button class="ib" data-go="explore" aria-label="Buscar">${ic(I.search,18)}</button><button class="ib" data-go="notifs" style="position:relative" aria-label="Notificações">${ic(I.bell,18)}${unread?'<span class="dotn"></span>':''}</button></div></div>`;},
  mount(el){const f=this.f||'all',flt=FILT[f];$$('#ff button',el).forEach(b=>b.onclick=()=>{if(b.dataset.k===(this.f||'all'))return;this.f=b.dataset.k;router.render(this,true,true);});
   const tt=$('#tt',el);if(f==='crew'&&!S.me.crew){tt.innerHTML=`<div class="ttempty">${ic(I.people,40)}<div class="b" style="color:var(--tx)">Você ainda não tem crew</div><button class="btn sm" data-go="explore">Achar uma crew</button></div>`;return;}
   if(f==='fol'&&!Object.keys(S.follow).length){tt.innerHTML=`<div class="ttempty">${ic(I.people,40)}<div class="b" style="color:var(--tx)">Siga pilotos pra ver os rolês deles aqui</div><button class="btn sm" data-go="explore">Encontrar pilotos</button></div>`;return;}

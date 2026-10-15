@@ -3,7 +3,7 @@
 const RL=window.__role;if(!RL)return;
 const {S,SCREENS,save,toast,sheet,ic,I,esc,$,$$,router,rebuildCar,fmtKm}=RL;
 const st=document.createElement('style');st.textContent=`
-.gstage{position:relative;height:330px;border-radius:30px;overflow:hidden;background:radial-gradient(70% 55% at 50% 62%,rgba(198,244,50,.16),transparent 70%),linear-gradient(#151613,#0A0B09);border:1px solid var(--line);touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.gstage{position:relative;height:330px;border-radius:30px;overflow:hidden;touch-action:pan-y;background:radial-gradient(70% 55% at 50% 62%,rgba(198,244,50,.16),transparent 70%),linear-gradient(#151613,#0A0B09);border:1px solid var(--line);touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .gstage .gfloor{position:absolute;left:12%;right:12%;bottom:96px;height:26px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.75),transparent);filter:blur(4px)}
 .gstage .glines{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.025) 46px 47px);-webkit-mask-image:linear-gradient(transparent,#000 40%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 40%,#000 70%,transparent)}
 .gim{position:absolute;left:0;right:0;top:52px;bottom:96px;display:flex;align-items:center;justify-content:center;will-change:transform,opacity;transition:transform .6s cubic-bezier(.2,.9,.2,1),opacity .5s ease,filter .5s ease}
@@ -17,6 +17,7 @@ const st=document.createElement('style');st.textContent=`
 .ga{animation:gin .55s cubic-bezier(.2,.9,.2,1) both}
 @keyframes gin{from{opacity:0;transform:translateY(16px);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
 .gout>*{transition:opacity .16s ease,transform .16s ease,filter .16s ease;opacity:0!important;transform:translateY(-10px)!important;filter:blur(5px)}
+.gacts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.gacts button{height:46px;border-radius:15px;background:#141512;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:7px;font-weight:800;font-size:13.5px}.gacts button:active{transform:scale(.97)}.gacts button:last-child{background:rgba(198,244,50,.12);border-color:rgba(198,244,50,.35);color:var(--lime2)}
 #gb.gfade{animation:gfd .4s ease both}@keyframes gfd{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .gcar{display:flex}
 .gslide{flex:0 0 calc(100% - 8px);scroll-snap-align:center;border-radius:28px;position:relative;overflow:hidden;height:300px;background:radial-gradient(80% 70% at 50% 75%,rgba(198,244,50,.18),transparent 70%),linear-gradient(#141512,#0B0C0A);border:1px solid var(--line)}
@@ -62,8 +63,9 @@ SCREENS.garage={tab:'garage',
  html(){const cs=S.cars;if(!cs.length)return`<div class="hdr"><h1>Garagem</h1></div><div class="scroll"><div class="card empty">Nenhum veículo ainda.<br><br><button class="btn" data-go="carForm">Adicionar veículo</button></div></div>`;
   let ci=this.ci;if(ci==null){ci=Math.max(0,cs.findIndex(c=>c.active));this.ci=ci;}ci=Math.min(ci,cs.length-1);
   return`<div class="hdr"><h1>Garagem</h1><span class="small muted">${cs.length}${S.plus?'':'/3'}</span><button class="ib" data-go="carForm" aria-label="Adicionar veículo">${ic(I.plus)}</button></div><div class="scroll" style="padding-top:0">
-  <div class="gstage gcar" id="gc"><div class="glines"></div><div class="gfloor"></div><div class="gtop" id="gtop">${this.topH(cs[ci])}</div>${cs.map((c,i)=>`<div class="gim" data-i="${i}">${carPic(c)}</div>`).join('')}<div class="gtxt" id="gtx">${this.txtH(cs[ci],true)}</div></div>
+  <div class="gstage gcar" id="gc"><div class="glines"></div><div class="gfloor"></div><div class="gtop" id="gtop">${this.topH(cs[ci])}</div>${cs.map((c,i)=>`<div class="gim" data-i="${i}">${carPic(c)}${RL.stkHTML?RL.stkHTML(c):''}</div>`).join('')}<div class="gtxt" id="gtx">${this.txtH(cs[ci],true)}</div></div>
   ${cs.length>1?`<div class="gdots">${cs.map((_,i)=>`<i class="${i===ci?'on':''}"></i>`).join('')}</div>`:''}
+  <div class="gacts"><button data-q="q-edit">${ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',17)}Editar</button><button data-q="q-photo">${ic(I.cam,17)}Foto</button><button data-q="q-studio">${ic('<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>',17)}Personalizar</button></div>
   <div id="gb"></div></div>`;},
  topH(c){const h=health(c);return`${c.active?`<span class="badge ga" style="background:rgba(198,244,50,.16);color:var(--lime2)">No mapa</span>`:''}${S.me.feat===c.id?`<span class="badge ga" style="background:rgba(255,255,255,.08);animation-delay:.04s">★ Destaque</span>`:''}<span style="flex:1"></span>${h!=null?`<span class="badge ga" style="background:rgba(0,0,0,.5);animation-delay:.08s">Saúde ${h}%</span>`:''}`;},
  txtH(c,still){const a=still?'':'ga';return`<div style="flex:1;min-width:0"><div class="small muted ${a}" style="animation-delay:.05s">${esc(c.year||'')}${c.color?' · '+esc(c.color):''}${c.type==='moto'?' · moto':''}</div><div class="gn ${a}" style="animation-delay:.1s">${esc(c.model)}</div></div><span class="odo ${a}" style="animation-delay:.16s" data-odo="${odo(c)}">${String(odo(c)).padStart(6,'0')} km</span>`;},
@@ -76,12 +78,18 @@ SCREENS.garage={tab:'garage',
     const od=$('[data-odo]',tx),to=odo(c),t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/650),e=1-Math.pow(1-k,3);if(od)od.textContent=String(Math.round(from+(to-from)*e)).padStart(6,'0')+' km';if(k<1)requestAnimationFrame(step);};requestAnimationFrame(step);},170);
    setTimeout(()=>draw(true),120);};
   let sx=null,sy=0,dx=0,t0=0,lock=null;
-  gc.addEventListener('pointerdown',e=>{if(n<2)return;sx=e.clientX;sy=e.clientY;dx=0;lock=null;t0=Date.now();});
-  gc.addEventListener('pointermove',e=>{if(sx==null)return;const ddx=e.clientX-sx,ddy=e.clientY-sy;if(!lock){if(Math.abs(ddx)>8&&Math.abs(ddx)>Math.abs(ddy))lock='x';else if(Math.abs(ddy)>10){lock='y';sx=null;return;}else return;gc.classList.add('drag');try{gc.setPointerCapture(e.pointerId);}catch(x){}}
-   dx=ddx;if((this.ci===0&&dx>0)||(this.ci===n-1&&dx<0))dx*=.35;place(dx);});
+  const start=(x,y)=>{if(n<2)return;sx=x;sy=y;dx=0;lock=null;t0=Date.now();};
+  const move=(x,y,ev)=>{if(sx==null)return false;const ddx=x-sx,ddy=y-sy;if(!lock){if(Math.abs(ddx)>7&&Math.abs(ddx)>Math.abs(ddy)*1.1)lock='x';else if(Math.abs(ddy)>9){lock='y';sx=null;return false;}else return false;gc.classList.add('drag');}
+   dx=ddx;if((this.ci===0&&dx>0)||(this.ci===n-1&&dx<0))dx*=.35;place(dx);return true;};
   const end=()=>{if(sx==null)return;sx=null;gc.classList.remove('drag');if(lock!=='x'){return;}this._dt=Date.now();const W=gc.clientWidth,v=dx/Math.max(1,Date.now()-t0);let i=this.ci;if(dx<-W*.18||v<-.45)i++;else if(dx>W*.18||v>.45)i--;go(i);};
-  gc.addEventListener('pointerup',end);gc.addEventListener('pointercancel',end);gc.addEventListener('lostpointercapture',end);
+  gc.addEventListener('touchstart',e=>{const t=e.touches[0];start(t.clientX,t.clientY);},{passive:true});
+  gc.addEventListener('touchmove',e=>{const t=e.touches[0];if(move(t.clientX,t.clientY)&&e.cancelable)e.preventDefault();},{passive:false});
+  gc.addEventListener('touchend',end);gc.addEventListener('touchcancel',end);
+  gc.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')return;start(e.clientX,e.clientY);try{gc.setPointerCapture(e.pointerId);}catch(x){}});
+  gc.addEventListener('pointermove',e=>{if(e.pointerType==='mouse')move(e.clientX,e.clientY);});
+  gc.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')end();});
   $$('.gdots i',el).forEach((d,k)=>{d.style.cursor='pointer';d.onclick=()=>go(k);});
+  const qa={'q-edit':()=>router.go('carForm',{id:S.cars[this.ci].id}),'q-photo':()=>router.go('photo',{id:S.cars[this.ci].id,slot:'front'}),'q-studio':()=>router.go('studio',{id:S.cars[this.ci].id})};$$('.gacts [data-q]',el).forEach(b=>b.onclick=()=>qa[b.dataset.q]());
   ims.forEach((e,k)=>e.addEventListener('click',()=>{if(k!==this.ci&&Date.now()-(this._dt||0)>350)go(k);}));
   draw();},
  body(c){const t=this.t||'geral',o=odo(c),h=health(c),its=items(c).map(it=>({it,s:mstate(c,it)})),late=its.filter(x=>x.s.st==='late'),soon=its.filter(x=>x.s.st==='soon');
@@ -94,7 +102,7 @@ SCREENS.garage={tab:'garage',
    ${[...late,...soon].slice(0,3).map(x=>`<button class="card mi" data-m="${x.it[0]}" style="margin-top:8px"><span class="mst ${x.s.st}">${x.s.lbl}</span><div style="flex:1"><div class="b" style="font-size:14px">${x.it[1]}</div><div class="small muted">${x.s.txt}</div></div></button>`).join('')}
    <div class="sec-t">No Rolê com ele</div><div class="card stat3" style="padding:14px 0"><div><b>${fmtKm(kmRole*1000)}</b><span>km</span></div><div><b class="lime">${hexC}</b><span>hex</span></div><div><b>${S.rides.filter(r=>r.car===c.model).length}</b><span>rolês</span></div></div>
    <div class="sec-t">Visual</div><div class="gtiles">${[['front','Frente','vitrine e perfil'],['rear','Traseira','aparece no mapa']].map(([k,tt,s])=>`<button class="gtile press" data-go="photo" data-p='${JSON.stringify({id:c.id,slot:k})}'><div class="im chk">${c[k]?`<img src="${c[k]}" alt="">`:ic(I.cam,26)}</div><div class="b" style="margin-top:8px;font-size:14px">${tt}</div><div class="small muted">${c[k]?s:'Toque pra tirar a foto'}</div></button>`).join('')}</div>
-   <button class="card row press" data-go="studio" style="width:100%;text-align:left;margin-top:10px"><span class="ib" style="width:42px;height:42px;color:var(--lime2)">✦</span><div style="flex:1"><div class="b">Estúdio de visual</div><div class="small muted">Cor, brilho e neon embaixo</div></div></button>
+   <button class="card row press" data-go="studio" style="width:100%;text-align:left;margin-top:10px"><span class="ib" style="width:42px;height:42px;color:var(--lime2)">✦</span><div style="flex:1"><div class="b">Personalizar</div><div class="small muted">Adesivos, moldura, rastro e oficina</div></div></button>
    <div class="row" style="gap:10px;margin-top:12px"><button class="btn ${c.active?'sec':''}" data-g="active" style="flex:1">${c.active?'✓ No mapa':'Usar no mapa'}</button><button class="btn sec" data-g="feat" style="flex:1">${S.me.feat===c.id?'★ Destaque':'Tornar destaque'}</button></div>
    <div class="card list" style="margin-top:10px">${[['photo','Foto da traseira no mapa'],['arrow','Seta padrão no mapa']].map(x=>`<div class="row" data-g="marker" data-mk="${x[0]}" style="padding:10px 0"><div style="flex:1" class="b">${x[1]}</div><span class="switch ${S.settings.marker===x[0]?'on':''}"></span></div>`).join('')}</div>
    <div class="row" style="gap:10px;margin-top:12px"><button class="btn sec" data-go="carForm" data-p='${JSON.stringify({id:c.id})}' style="flex:1">Editar dados</button>${S.cars.length>1?`<button class="btn danger" data-g="del" style="flex:1">Remover</button>`:''}</div>`;}

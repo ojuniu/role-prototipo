@@ -31,7 +31,7 @@ function seedEvents(){const base=myPos(),key=base[0].toFixed(1)+':'+base[1].toFi
   S.evSeed=key;S.evFake=out;save();return out;}
 S.events=S.events||[];S.evGoing=S.evGoing||{};
 const all=()=>[...S.events,...seedEvents()].filter(e=>e.t>Date.now()-6*3600e3);
-const evById=id=>all().find(e=>e.id===id);
+const evById=id=>all().find(e=>e.id===id);RL.evAll=all;
 const dateBox=t=>{const d=new Date(t);return`<div class="evd"><b>${d.getDate()}</b><span>${MES[d.getMonth()]}</span></div>`;};
 const when=t=>{const d=new Date(t);return`${DIA[d.getDay()]}, ${d.getDate()} ${MES[d.getMonth()]} · ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
 const going=e=>e.going+(S.evGoing[e.id]?1:0);
