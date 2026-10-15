@@ -6,7 +6,7 @@ const C=RL.comm||{P:[]};
 const DEF=RL.DEFAULT_CENTER||[-43.9386,-19.9255];
 const myPos=()=>gps.pos||ride.last||S.lastPos||DEF;
 const st=document.createElement('style');st.textContent=`
-.mapfabs{position:absolute;right:14px;top:calc(130px + var(--safeT));display:flex;flex-direction:column;gap:10px;z-index:6}
+.mapfabs{position:absolute;right:14px;top:calc(200px + var(--safeT));display:flex;flex-direction:column;gap:10px;z-index:6}
 .fab{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;background:rgba(18,19,17,.78);border:1px solid var(--line2);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--tx)}
 .fab.on{background:rgba(198,244,50,.2);border-color:rgba(198,244,50,.6);color:var(--lime2)}
 .fab.warn{background:#FF9F1C;color:#0A0B0A;border-color:#FF9F1C}
