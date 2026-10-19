@@ -144,7 +144,7 @@ const sim={cars:[],roads:[],raf:0,lt:0,on:true};
 function simRoads(){const m=getMap();if(!m)return;try{sim.roads=m.queryRenderedFeatures().filter(f=>f.sourceLayer==='transportation'&&/minor|tertiary|secondary|primary|trunk/.test(f.properties.class)&&f.geometry.type==='LineString'&&f.geometry.coordinates.length>1).map(f=>f.geometry.coordinates);}catch(e){}}
 function pathLen(c){let L=0;const cum=[0];for(let i=1;i<c.length;i++){L+=dist(c[i-1],c[i]);cum.push(L);}return cum;}
 function setPath(car,c){car.c=c;car.cum=pathLen(c);car.s=0;}
-function spawn(){const m=getMap();if(!sim.roads.length)return;const c=sim.roads[Math.floor(Math.random()*sim.roads.length)];const path=Math.random()<.5?c:c.slice().reverse();const P=C.P||[];const who=P[Math.floor(Math.random()*P.length)]||{};
+function spawn(){const m=getMap();if(!sim.roads.length)return;const c=sim.roads[Math.floor(Math.random()*sim.roads.length)];const path=Math.random()<.5?c:c.slice().reverse();const P=(RL.mapPeople?RL.mapPeople():C.P)||[];if(!P.length)return;const who=P[Math.floor(Math.random()*P.length)]||{};
   const el=document.createElement('div');el.className='simcar';el.style.background=who.g||'#888';el.innerHTML=RL.avatar2?RL.avatar2(who,30):(RL.silh?RL.silh(who.moto?'moto':'car'):'');el.title=who.n||'';el.onclick=e=>{e.stopPropagation();if(who.h)router.go('person',{h:who.h});};
   const car={el,v:7+Math.random()*7,who};setPath(car,path);car.s=Math.random()*car.cum[car.cum.length-1]*.6;car.mk=new maplibregl.Marker({element:el}).setLngLat(path[0]).addTo(m);sim.cars.push(car);}
 function nextRoad(car){const end=car.c[car.c.length-1];const opts=[];for(const r of sim.roads){if(r===car.c)continue;if(dist(r[0],end)<12)opts.push(r);else if(dist(r[r.length-1],end)<12)opts.push(r.slice().reverse());}
@@ -160,6 +160,7 @@ function simTick(ts){sim.raf=requestAnimationFrame(simTick);const m=getMap();con
 /* ---------- POSTOS E PREÇOS ---------- */
 const FUELS=[['gas','Gasolina'],['adt','Aditivada'],['eta','Etanol'],['die','Diesel S10'],['gnv','GNV']];const FN=Object.fromEntries(FUELS);
 const BASE={gas:5.79,adt:5.99,eta:3.99,die:6.09,gnv:4.79};
+RL.fuelAvg=f=>{f=f||S.fuelType||'gas';const p=myPos();const v=[...OSM.stations.values()].filter(s=>dist(p,s.p)<15000).map(s=>price(s,f)).filter(Boolean).map(x=>x.v);return v.length?v.reduce((a,b)=>a+b,0)/v.length:BASE[f];};
 S.fuelRep=S.fuelRep||{};S.fills=S.fills||[];S.fuelType=S.fuelType||'gas';
 const FXC={gas:'g',adt:'a',eta:'e',die:'d',gnv:'n'};const has=(st,f)=>st.fx?(f==='gas'?/[ga]/.test(st.fx):st.fx.includes(FXC[f])):f==='gnv'?hsh(st.id+'gnv')<.22:f==='die'?hsh(st.id+'die')<.7:true;
 function price(st,f){const r=S.fuelRep[st.id+':'+f];if(r)return{v:r.v,t:r.t,by:S.me.handle};if(!has(st,f))return null;

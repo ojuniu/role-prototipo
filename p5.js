@@ -109,17 +109,20 @@ const TABS=['map','feed','garage','profile'];const FT=['all','fol','crew'];
 let dbp=null;const db=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open('role-media',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);}));
 const putM=async(k,b)=>{const d=await db();return new Promise((ok,no)=>{const tx=d.transaction('m','readwrite');tx.objectStore('m').put(b,k);tx.oncomplete=ok;tx.onerror=()=>no(tx.error);});};
 const urlCache=new Map();const getURL=async k=>{if(urlCache.has(k))return urlCache.get(k);const d=await db();const b=await new Promise(ok=>{const r=d.transaction('m').objectStore('m').get(k);r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null);});if(!b)return null;const u=URL.createObjectURL(b);urlCache.set(k,u);return u;};
-async function fillMedia(root){for(const el of $$('[data-mk]',root)){if(el.dataset.done)continue;el.dataset.done=1;const u=await getURL(el.dataset.mk);if(u){el.src=u;el.classList.add('ok');}}}
+const playV=x=>{if(!x||x.dataset.up)return;x.muted=!S.sound;const p=x.play();if(p&&p.catch)p.catch(()=>{if(!x.muted){x.muted=true;x.play().catch(()=>{});}});};RL.playV=playV;
+const inView=el=>{const r=el.getBoundingClientRect();return r.bottom>innerHeight*.3&&r.top<innerHeight*.7&&r.right>0&&r.left<innerWidth;};
+async function fillMedia(root){for(const el of $$('[data-mk]',root)){if(el.dataset.done)continue;el.dataset.done=1;const u=await getURL(el.dataset.mk);if(u){el.src=u;el.classList.add('ok');if(el.tagName==='VIDEO'){el.load();if(inView(el))playV(el);}}}}
 async function shrink(f){if(!f.type.startsWith('image/'))return f;const u=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u;});const k=Math.min(1,1920/Math.max(img.width,img.height),1080/Math.min(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);return await new Promise(ok=>c.toBlob(b=>ok(b||f),'image/jpeg',.85));}
 /* vídeos de carros (Wikimedia Commons) */
-let VIDS=null;try{VIDS=JSON.parse(localStorage.getItem('role.vids2')||'null');}catch(e){}
+const canV=v=>{try{const t=String(v&&v.type||'').split(';')[0]||(/\.webm/i.test(v&&v.src||'')?'video/webm':'video/mp4');return!!document.createElement('video').canPlayType(t);}catch(e){return true;}};
+let VIDS=null;try{VIDS=JSON.parse(localStorage.getItem('role.vids3')||'null');if(VIDS)VIDS=VIDS.filter(canV);}catch(e){}
 const VCATS=['Videos of automobiles','Videos of driving','Videos of auto racing','Videos of motorcycles','Dashcam videos'];const VBAD=/tornado|meteor|war|attack|protest|crash|accident|police|nebula|military|missile|地震|kino|1923|19[0-4]\d/i;
 async function videos(){if(VIDS&&VIDS.length)return VIDS;const out=[];
   for(const c of VCATS){try{const j=await(await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=categorymembers&gcmtype=file&gcmlimit=50&gcmtitle='+encodeURIComponent('Category:'+c)+'&prop=videoinfo&viprop=url|derivatives|size|mediatype&format=json&origin=*')).json();
     for(const p of Object.values((j.query||{}).pages||{})){const v=p.videoinfo&&p.videoinfo[0];if(!v||!v.width||VBAD.test(p.title)||/\.(ogg|oga|mp3|wav|flac)$/i.test(v.url))continue;if(v.duration&&(v.duration<4||v.duration>240))continue;
      const ds=(v.derivatives||[]).filter(d=>/video/.test(d.type));const pick=ds.filter(d=>(d.height||0)<=1080&&(d.height||0)>=360).sort((a,b)=>(b.height||0)-(a.height||0));const d=pick.find(x=>/mp4/.test(x.type))||pick[0];if(!d)continue;
-     out.push({src:d.src,w:v.width,h:v.height,t:p.title.replace(/^File:/,'').replace(/\.[a-z0-9]+$/i,'')});}}catch(e){}}
-  VIDS=out.sort((a,b)=>hsh(a.src)-hsh(b.src)).slice(0,60);if(VIDS.length)try{localStorage.setItem('role.vids2',JSON.stringify(VIDS));}catch(e){}return VIDS;}
+     out.push({src:d.src,type:d.type,w:v.width,h:v.height,t:p.title.replace(/^File:/,'').replace(/\.[a-z0-9]+$/i,'')});}}catch(e){}}
+  VIDS=out.filter(canV).sort((a,b)=>hsh(a.src)-hsh(b.src)).slice(0,60);if(VIDS.length)try{localStorage.setItem('role.vids3',JSON.stringify(VIDS));}catch(e){}return VIDS;}
 const vsrc=v=>typeof v==='string'?v:v.src;
 videos();
 /* ================= FEED em tela cheia nas 3 abas ================= */
@@ -134,7 +137,7 @@ function wireVideo(vs){const v=$('video',vs),bar=$('.vbar',vs),fl=$('.fl',vs),kn
   bar.addEventListener('pointermove',e=>{if(bar.classList.contains('act'))seekTo(e);});
   const up=()=>{if(!bar.classList.contains('act'))return;bar.classList.remove('act');vs.classList.remove('seeking');vs.closest('.tti').classList.remove('seeking');if(!wasP&&!v.dataset.up)v.play().catch(()=>{});};
   bar.addEventListener('pointerup',up);bar.addEventListener('pointercancel',up);bar.addEventListener('click',e=>e.stopPropagation());}
-function togglePlay(vs){const v=$('video',vs);if(!v)return;if(v.paused){delete v.dataset.up;vs.classList.remove('paused');v.muted=!S.sound;v.play().catch(()=>{});}else{v.dataset.up=1;v.pause();vs.classList.add('paused');}}
+function togglePlay(vs){const v=$('video',vs);if(!v)return;if(v.paused){delete v.dataset.up;vs.classList.remove('paused');playV(v);}else{v.dataset.up=1;v.pause();vs.classList.add('paused');}}
 function mediaPost(p){const w=C.who(p.h)||{n:p.h,h:p.h};const cr=w.crew&&C.CREWS?C.CREWS[w.crew]:null;const key=p.model||(p.car?RL.modelKey(p.car):(w.car?RL.modelKey(w.car):''));
   const on=p.mine?!!(S.posts.find(x=>x.id===p.id)||{}).hornOn:!!S.horn[p.id];const n=p.mine?(S.posts.find(x=>x.id===p.id)||{}).horn||0:p.horn+(S.horn[p.id]?1:0);const cm=(p.cm||[]).length+((S.cm||{})[p.id]||[]).length;
   let slides=[];if(p.media)slides=p.media.map(m=>m.type==='video'?vslide(`<video data-mk="${m.k}" muted loop playsinline preload="metadata"></video>`):`<div><img data-mk="${m.k}" alt=""></div>`);
@@ -158,7 +161,7 @@ const made=new Map();const getP=i=>{if(!made.has(i))made.set(i,T.genPost(i));ret
 function genMore(i,f){let p=getP(i);if(f&&f!=='all'){const allow=f==='fol'?Object.keys(S.follow):T.people().filter(w=>w.crew&&w.crew===S.me.crew).map(w=>w.h);if(allow.length&&!allow.includes(p.h)){const id=p.id+f;let q=made.get(id);if(!q){q={...p,id,h:allow[Math.floor(hsh(id)*allow.length)],cm:[]};const w=C.who(q.h);if(w&&w.car)q.model=RL.modelKey(w.car);made.set(id,q);RL.extraPosts.push(q);}p=q;}}
   if(p.kind==='photo'&&!p.nph){const r=hsh('n'+p.id);p.nph=r<.45?1:r<.7?2:r<.88?3:4;}
   if(p.kind!=='ride'&&!p.vid&&hsh('v'+p.id)<.38&&VIDS&&VIDS.length){p.kind='video';p.vid=VIDS[Math.floor(hsh('vv'+p.id)*VIDS.length)];if(p.vid.t)p.vtitle=p.vid.t;}return p;}
-function feedWire(tt){const obs=new IntersectionObserver(es=>es.forEach(e=>{$$('video',e.target).forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;if(x.dataset.up)return;x.muted=!S.sound;x.play().catch(()=>{});}else x.pause();});}),{threshold:[0,.6,1]});
+function feedWire(tt){const obs=new IntersectionObserver(es=>es.forEach(e=>{$$('video',e.target).forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;if(x.dataset.up)return;playV(x);}else x.pause();});}),{threshold:[0,.6,1]});
   [...tt.children].forEach(s=>{obs.observe(s);$$('.vs',s).forEach(wireVideo);const cs=$('.ttcs',s);if(cs)cs.addEventListener('scroll',()=>{const i=Math.round(cs.scrollLeft/cs.clientWidth);$$('.ttdots i',s).forEach((d,k)=>d.classList.toggle('on',k===i));},{passive:true});});fillMedia(tt);
   let st1=0,lt=0;tt.addEventListener('click',e=>{if(e.target.closest('button,.vbar,.pmloc'))return;const now=Date.now();if(now-lt<300){clearTimeout(st1);lt=0;const s=e.target.closest('.tti');if(s){const b=$('[data-on="horn"]',s);if(b&&!b.classList.contains('on'))b.click();const pop=$('.ttpop',s);pop.classList.add('on');setTimeout(()=>pop.classList.remove('on'),650);}return;}lt=now;
    const s=e.target.closest('.tti');const cs=s&&$('.ttcs',s);if(!cs)return;const sl=cs.children[Math.round(cs.scrollLeft/(cs.clientWidth||1))];if(sl&&sl.classList.contains('vs'))st1=setTimeout(()=>togglePlay(sl),280);});}
@@ -172,7 +175,7 @@ SCREENS.feed={tab:'feed',
   const tt=$('#tt',el);if(f==='crew'&&!S.me.crew){tt.innerHTML=`<div class="ttempty">${ic(I.people,40)}<div class="b" style="color:var(--tx)">Você ainda não tem crew</div><button class="btn sm" data-go="explore">Achar uma crew</button></div>`;return;}
   if(f==='fol'&&!Object.keys(S.follow).length){tt.innerHTML=`<div class="ttempty">${ic(I.people,40)}<div class="b" style="color:var(--tx)">Siga pilotos pra ver os rolês deles aqui</div><button class="btn sm" data-go="explore">Encontrar pilotos</button></div>`;return;}
   const mine=C.allPosts().filter(p=>p.mine).slice(0,5),base=C.FPOSTS.filter(p=>!flt||flt(p)).slice(0,4);
-  const obs=new IntersectionObserver(es=>es.forEach(e=>{const v=$$('video',e.target);v.forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;if(x.dataset.up)return;x.muted=!S.sound;x.play().catch(()=>{});}else{x.pause();if(x.dataset.up){delete x.dataset.up;const w=x.closest('.vs');if(w)w.classList.remove('paused');}}});}),{threshold:[0,.6,1]});
+  const obs=new IntersectionObserver(es=>es.forEach(e=>{const v=$$('video',e.target);v.forEach(x=>{if(e.isIntersecting&&e.intersectionRatio>.6){if(!x.src&&x.dataset.mk)return;if(x.dataset.up)return;playV(x);}else{x.pause();if(x.dataset.up){delete x.dataset.up;const w=x.closest('.vs');if(w)w.classList.remove('paused');}}});}),{threshold:[0,.6,1]});
   const add=list=>{const before=tt.children.length;tt.insertAdjacentHTML('beforeend',list.map(item).join(''));[...tt.children].slice(before).forEach(s=>{obs.observe(s);$$('.vs',s).forEach(wireVideo);const cs=$('.ttcs',s);if(cs){cs.addEventListener('scroll',()=>{const i=Math.round(cs.scrollLeft/cs.clientWidth);$$('.ttdots i',s).forEach((d,k)=>d.classList.toggle('on',k===i));},{passive:true});}});
    list.forEach(p=>{if(!p.media&&p.kind==='ride'&&!p.mine)T.needRoute(p);});fillMedia(tt);};
   add([...mine,...base]);this.gi=this.gi||{};this.gi[f]=this.gi[f]||0;
