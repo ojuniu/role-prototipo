@@ -61,7 +61,7 @@ SCREENS.events={tab:'events',
 SCREENS.event={tabbar:false,
  html(pp){const e=evById(pp.id);if(!e)return`<div class="hdr"><button class="ib" data-back>${ic(I.back)}</button></div><div class="empty">Evento não encontrado ou já passou</div>`;const[n,col]=TYPES[e.ty];const host=C.who(e.host)||{n:e.host,h:e.host};const on=!!S.evGoing[e.id];
   const ppl=[...(on?[{me:true,n:S.me.name,h:S.me.handle}]:[]),...C.P.filter((_,i)=>hsh(e.id+i)<.45).slice(0,7)];
-  const map=RL.staticMap?RL.staticMap([offset(e.p,-60,0),offset(e.p,60,0)],440,200,{noRoute:true,maxZ:15,extra:pr=>{const[x,y]=pr(e.p);return`<circle cx="${x}" cy="${y}" r="26" fill="${col}" fill-opacity=".18"/><circle cx="${x}" cy="${y}" r="10" fill="${col}" stroke="#0A0B0A" stroke-width="3"/>`;}}):'';
+  const map=RL.staticMap?RL.staticMap([offset(e.p,-1200,-500),offset(e.p,1200,500)],420,210,{noRoute:true,maxZ:13,extra:pr=>{const[x,y]=pr(e.p);return`<circle cx="${x}" cy="${y}" r="26" fill="${col}" fill-opacity=".18"/><circle cx="${x}" cy="${y}" r="10" fill="${col}" stroke="#0A0B0A" stroke-width="3"/>`;}}):'';
   return`<div class="hdr"><button class="ib" data-back>${ic(I.back)}</button><h2>Evento</h2><button class="ib" data-on="share" aria-label="Compartilhar">${ic(I.share,18)}</button></div><div class="scroll">
   <div class="evmap"><div class="smapw">${map}</div><span class="osmc">Esri · © OpenStreetMap</span></div>
   <div style="margin:14px 4px 0"><span class="evt"><i style="background:${col}"></i>${n}</span>${e.crew?` <span class="evt">Crew ${esc(e.crew)}</span>`:''}<div style="font-size:26px;font-weight:800;margin-top:8px;line-height:1.15">${esc(e.title)}</div>

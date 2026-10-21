@@ -125,38 +125,43 @@ function circle(c,r,n=28){const kx=111320*Math.cos(rad(c[1])),ky=110540;const pt
 const pip=(pt,poly)=>{let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];if(((yi>pt[1])!==(yj>pt[1]))&&(pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi))ins=!ins;}return ins;};
 let CELLS=[];
 /* ---- névoa (fog of war): a cidade fica escura e abre por onde você passa ---- */
-S.fog=S.fog||{};const FG=.002;
-function fogMark(p,r){const kx=111320*Math.cos(rad(p[1])),ky=110540;const nx=Math.ceil(r/(FG*kx))+1,ny=Math.ceil(r/(FG*ky))+1;const cx=Math.floor(p[0]/FG),cy=Math.floor(p[1]/FG);let n=0;
-  for(let dx=-nx;dx<=nx;dx++)for(let dy=-ny;dy<=ny;dy++){const x=cx+dx,y=cy+dy;if(Math.hypot(((x+.5)*FG-p[0])*kx,((y+.5)*FG-p[1])*ky)<=r){const k=x+','+y;if(!S.fog[k]){S.fog[k]=1;n++;}}}return n;}
-const fogOpen=p=>!!S.fog[Math.floor(p[0]/FG)+','+Math.floor(p[1]/FG)];
+/* hexágonos chapados (mesma grade do território, 70 m) */
+const ER=6378137,HS=70,MXm=l=>ER*rad(l),MYm=a=>ER*Math.log(Math.tan(Math.PI/4+rad(a)/2)),ILN=x=>x/ER*180/Math.PI,ILA=y=>(2*Math.atan(Math.exp(y/ER))-Math.PI/2)*180/Math.PI;
+const hkey=p=>{const x=MXm(p[0]),y=MYm(p[1]);const q=(Math.sqrt(3)/3*x-y/3)/HS,r=(2/3*y)/HS,s2=-q-r;let rq=Math.round(q),rr=Math.round(r),rs=Math.round(s2);const dq=Math.abs(rq-q),dr=Math.abs(rr-r),ds=Math.abs(rs-s2);if(dq>dr&&dq>ds)rq=-rr-rs;else if(dr>ds)rr=-rq-rs;return rq+','+rr;};
+const HC=new Map(),HV=new Map();const hver=k=>{let v=HV.get(k);if(v)return v;const[q,r]=k.split(',').map(Number);const cx=HS*Math.sqrt(3)*(q+r/2),cy=HS*1.5*r;v=[0,1,2,3,4,5].map(i=>{const a=rad(60*i-30);return[ILN(cx+HS*1.02*Math.cos(a)),ILA(cy+HS*1.02*Math.sin(a))];});HV.set(k,v);return v;};const hcen=k=>{let c=HC.get(k);if(c)return c;const[q,r]=k.split(',').map(Number);c=[ILN(HS*Math.sqrt(3)*(q+r/2)),ILA(HS*1.5*r)];HC.set(k,c);return c;};
+if(!S.fogH){S.fogH={};S.fogSeed=0;}S.fog={};
+function fogMark(p,r){const k0=hkey(p).split(',').map(Number);const n0=Math.ceil(r/(HS*1.5))+1;let n=0;
+  for(let dq=-n0;dq<=n0;dq++)for(let dr=-n0;dr<=n0;dr++){const k=(k0[0]+dq)+','+(k0[1]+dr);if(S.fogH[k])continue;if(dist(hcen(k),p)<=r){S.fogH[k]=1;n++;}}return n;}
+const fogOpen=p=>!!S.fogH[hkey(p)];
 let FC=null,SPR=null,fogOn=false;
 function fogSprite(){if(SPR)return SPR;SPR=document.createElement('canvas');SPR.width=SPR.height=128;const x=SPR.getContext('2d');const g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(.55,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,128,128);return SPR;}
 function lockIc(x,px,py){x.save();x.translate(px,py);x.fillStyle='rgba(10,11,10,.9)';x.beginPath();x.arc(0,0,13,0,7);x.fill();x.strokeStyle='#FFB547';x.lineWidth=1.6;x.stroke();x.lineWidth=2.2;x.beginPath();x.arc(0,-2.5,4,Math.PI,0);x.stroke();x.fillStyle='#FFB547';x.fillRect(-6,-2,12,8);x.restore();}
 function fogDraw(){const m=getMap();if(!FC||!m)return;const on=S.mapMode!=='nav'&&fogOn;FC.style.display=on?'':'none';if(!on)return;
   const dpr=Math.min(2,devicePixelRatio||1),W=FC.clientWidth,H=FC.clientHeight;if(FC.width!==Math.round(W*dpr)){FC.width=Math.round(W*dpr);FC.height=Math.round(H*dpr);}
-  const x=FC.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.globalCompositeOperation='source-over';x.clearRect(0,0,W,H);x.fillStyle='rgba(4,5,4,.95)';x.fillRect(0,0,W,H);
-  const b=m.getBounds(),c=m.getCenter();const mpp=40075016.686*Math.cos(rad(c.lat))/(512*Math.pow(2,m.getZoom()));const R=Math.max(3,(FG*111320*1.35)/mpp);
-  const x0=Math.floor(b.getWest()/FG)-2,x1=Math.ceil(b.getEast()/FG)+2,y0=Math.floor(b.getSouth()/FG)-2,y1=Math.ceil(b.getNorth()/FG)+2;
-  x.globalCompositeOperation='destination-out';const sp=fogSprite();
-  const ks=Object.keys(S.fog);if((x1-x0)*(y1-y0)<ks.length){for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++)if(S.fog[gx+','+gy]){const q=m.project([(gx+.5)*FG,(gy+.5)*FG]);x.drawImage(sp,q.x-R,q.y-R,R*2,R*2);}}
-  else for(const k of ks){const [gx,gy]=k.split(',').map(Number);if(gx<x0||gx>x1||gy<y0||gy>y1)continue;const q=m.project([(gx+.5)*FG,(gy+.5)*FG]);x.drawImage(sp,q.x-R,q.y-R,R*2,R*2);}
-  const me=m.project(myPos());x.drawImage(sp,me.x-R*1.2,me.y-R*1.2,R*2.4,R*2.4);
+  const x=FC.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.globalCompositeOperation='source-over';x.clearRect(0,0,W,H);x.fillStyle='rgb(5,6,5)';x.fillRect(0,0,W,H);
+  const z=m.getZoom(),pxm=512*Math.pow(2,z)/(2*Math.PI*ER),R=HS*pxm*1.01;const b=m.getBounds();const pad=.01;
+  const ang=[0,1,2,3,4,5].map(i=>rad(60*i-30));const hp=(cx,cy,rr)=>{x.moveTo(cx+rr*Math.cos(ang[0]),cy-rr*Math.sin(ang[0]));for(let i=1;i<6;i++)x.lineTo(cx+rr*Math.cos(ang[i]),cy-rr*Math.sin(ang[i]));x.closePath();};
+  x.globalCompositeOperation='destination-out';x.fillStyle='#000';x.beginPath();const vis=[];
+  const poly=(pts,sc)=>{let cx=0,cy=0;if(sc!==1){pts.forEach(p=>{cx+=p.x;cy+=p.y;});cx/=6;cy/=6;}const P=p=>sc===1?p:{x:cx+(p.x-cx)*sc,y:cy+(p.y-cy)*sc};const a=P(pts[0]);x.moveTo(a.x,a.y);for(let i=1;i<6;i++){const q=P(pts[i]);x.lineTo(q.x,q.y);}x.closePath();};
+  for(const k in S.fogH){const c=hcen(k);if(c[0]<b.getWest()-pad||c[0]>b.getEast()+pad||c[1]<b.getSouth()-pad||c[1]>b.getNorth()+pad)continue;const pts=hver(k).map(v=>m.project(v));poly(pts,1);vis.push(pts);}
+  x.fill();
+  if(R>5){x.globalCompositeOperation='source-over';x.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--lime').trim()||'#C6F432';x.globalAlpha=.16;x.lineWidth=1;x.beginPath();for(const pts of vis)poly(pts,.95);x.stroke();x.globalAlpha=1;}
   x.globalCompositeOperation='source-over';if(m.getZoom()>=11.5){x.font="800 12px Manrope,system-ui,sans-serif";x.textAlign='center';
    for(const h of Object.values(S.hoods)){if(fogOpen(h.p))continue;const q=m.project(h.p);if(q.x<-60||q.y<-30||q.x>W+60||q.y>H+40)continue;lockIc(x,q.x,q.y);x.fillStyle='rgba(255,200,119,.92)';x.fillText(h.n,q.x,q.y+28);}}}
 function fogInit(){const m=getMap();if(!m||FC)return;const host=document.getElementById('mapHost');if(!host)return;FC=document.createElement('canvas');FC.className='fogc';host.appendChild(FC);
   m.on('render',fogDraw);addEventListener('resize',fogDraw);
-  if(!S.fogSeed){(S.rides||[]).forEach(r=>(r.track||[]).forEach((p,i)=>{if(i%3===0)fogMark(p,220);}));S.fogSeed=1;save();}}
+  if(!S.fogSeed){(S.rides||[]).forEach(r=>(r.track||[]).forEach((p,i)=>{if(i%2===0)fogMark(p,90);}));S.fogSeed=1;save();}}
 const hoodsOpen=()=>Object.values(S.hoods).filter(h=>fogOpen(h.p));
 async function lockRefresh(first){const m=getMap();if(!m)return;fogInit();LOCKL.forEach(l=>{if(m.getLayer(l))m.setLayoutProperty(l,'visibility','none');});
   if(S.mapMode==='nav'){fogOn=false;fogDraw();discUpdate();return;}harvest();fogOn=true;
-  if(!Object.keys(S.fog).length||first&&!fogOpen(myPos())){fogMark(myPos(),900);save();}
+  if(!Object.keys(S.fogH).length||first&&!fogOpen(myPos())){fogMark(myPos(),320);save();}
   fogDraw();m.triggerRepaint&&m.triggerRepaint();discUpdate();}
 function discUpdate(){const el=router.cur&&router.cur.name==='map'&&router.cur.el;if(!el)return;const d=$('.disc',el);if(!d)return;if(S.mapMode==='nav'){d.style.display='none';return;}d.style.display='';
-  const km2=Object.keys(S.fog).length*Math.pow(FG*111.1,2)*.94;d.innerHTML=`<b>${hoodsOpen().length}</b> bairros · <b>${km2<10?km2.toFixed(1).replace('.',','):Math.round(km2)}</b> km²`;}
+  const km2=Object.keys(S.fogH).length*0.0127*Math.pow(Math.cos(rad(myPos()[1])),2);d.innerHTML=`<b>${hoodsOpen().length}</b> bairros · <b>${km2<10?km2.toFixed(1).replace('.',','):Math.round(km2)}</b> km²`;}
 function celebrate(name){const host=document.getElementById('app');const w=document.createElement('div');w.className='unlockfx';w.innerHTML=`<div class="k">BAIRRO DESBLOQUEADO</div><div class="n">${esc(name)}</div>`;host.appendChild(w);setTimeout(()=>w.remove(),2700);navigator.vibrate&&navigator.vibrate([30,40,60]);}
 let lastFogP=null;
 setInterval(()=>{if(S.mapMode==='nav'||!fogOn)return;const p=myPos();if(lastFogP&&dist(lastFogP,p)<25)return;lastFogP=p;const before=new Set(hoodsOpen().map(h=>h.n));
-  if(fogMark(p,260)){save();fogDraw();const nw=hoodsOpen().filter(h=>!before.has(h.n));if(nw.length){celebrate(nw[0].n);toast(`${nw[0].n} desbloqueado! Agora pinte com hexágonos`);}discUpdate();}
+  if(fogMark(p,110)){save();fogDraw();const nw=hoodsOpen().filter(h=>!before.has(h.n));if(nw.length){celebrate(nw[0].n);toast(`${nw[0].n} desbloqueado! Agora pinte com hexágonos`);}discUpdate();}
   const cn=RL.myCity&&RL.myCity();if(cn&&!S.cities[norm(cn)]){S.cities[norm(cn)]={n:cn,t:Date.now(),p};save();}},2000);
 (function wait(){const m=getMap();if(!m||!m.on){setTimeout(wait,500);return;}fogInit();m.on('idle',()=>{if(S.mapMode==='nav')return;clearTimeout(lrT);lrT=setTimeout(()=>{if(harvest())fogDraw();if(!fogOn)lockRefresh();},400);});})();
 RL.isCityUnlocked=name=>!!S.cities[norm(name)]||norm(name)===cityKey();

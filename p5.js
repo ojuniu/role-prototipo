@@ -112,7 +112,7 @@ const urlCache=new Map();const getURL=async k=>{if(urlCache.has(k))return urlCac
 const playV=x=>{if(!x||x.dataset.up)return;x.muted=!S.sound;const p=x.play();if(p&&p.catch)p.catch(()=>{if(!x.muted){x.muted=true;x.play().catch(()=>{});}});};RL.playV=playV;
 const inView=el=>{const r=el.getBoundingClientRect();return r.bottom>innerHeight*.3&&r.top<innerHeight*.7&&r.right>0&&r.left<innerWidth;};
 async function fillMedia(root){for(const el of $$('[data-mk]',root)){if(el.dataset.done)continue;el.dataset.done=1;const u=await getURL(el.dataset.mk);if(u){el.src=u;el.classList.add('ok');if(el.tagName==='VIDEO'){el.load();if(inView(el))playV(el);}}}}
-RL.fillMedia=fillMedia;
+RL.fillMedia=fillMedia;RL.putM=putM;RL.shrink=shrink;
 async function shrink(f){if(!f.type.startsWith('image/'))return f;const u=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u;});const k=Math.min(1,1920/Math.max(img.width,img.height),1080/Math.min(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);return await new Promise(ok=>c.toBlob(b=>ok(b||f),'image/jpeg',.85));}
 /* vídeos de carros (Wikimedia Commons) */
 const canV=v=>{try{const t=String(v&&v.type||'').split(';')[0]||(/\.webm/i.test(v&&v.src||'')?'video/webm':'video/mp4');return!!document.createElement('video').canPlayType(t);}catch(e){return true;}};
