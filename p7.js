@@ -15,15 +15,16 @@ const LOCKP='<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a
 const TROPHY='<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>';
 const PIN='<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>';
 const st=document.createElement('style');st.textContent=`
-.mpick{position:absolute;inset:0;z-index:60;background:rgba(5,6,5,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;flex-direction:column;justify-content:center;padding:24px 18px calc(24px + var(--safeB));gap:14px;animation:mpin .35s ease}
-@keyframes mpin{from{opacity:0}to{opacity:1}}
-.mpick h3{font-family:'Anton','Oswald',sans-serif;font-weight:400;font-size:30px;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px 4px;transform:skewX(-8deg)}
-.mcard{position:relative;height:190px;border-radius:22px;overflow:hidden;text-align:left;border:1.5px solid rgba(255,255,255,.12);transform:skewX(-4deg);transition:transform .2s,border-color .2s;box-shadow:0 20px 40px rgba(0,0,0,.5)}
-.mcard:active{transform:skewX(-4deg) scale(.97)}.mcard.last{border-color:var(--lime)}
-.mcard .bg{position:absolute;inset:0}.mcard .in{position:absolute;inset:0;padding:18px 20px;display:flex;flex-direction:column;justify-content:flex-end;transform:skewX(4deg)}
-.mcard .t{font-family:'Anton','Oswald',sans-serif;font-size:40px;line-height:.9;letter-spacing:1px;text-transform:uppercase;font-style:italic}
-.mcard .d{font-size:13px;font-weight:700;opacity:.8;margin-top:6px;max-width:80%}
-.mcard .tag{position:absolute;right:16px;top:14px;font-size:11px;font-weight:900;letter-spacing:1px;padding:4px 9px;border-radius:99px;background:rgba(0,0,0,.55);transform:skewX(4deg)}
+.mpick{position:absolute;inset:0;z-index:60}.mpk-bd{position:absolute;inset:0;background:rgba(0,0,0,.35);opacity:0;transition:opacity .25s}
+.mpk-sh{position:absolute;left:10px;right:10px;bottom:calc(10px + var(--safeB));background:var(--sheet,#141513);border:1px solid var(--line2);border-radius:28px;padding:18px 16px 14px;transform:translateY(110%);transition:transform .32s cubic-bezier(.32,.72,0,1)}
+.mpick.on .mpk-bd{opacity:1}.mpick.on .mpk-sh{transform:none}
+.mpk-hd{display:flex;align-items:center;margin-bottom:12px}.mpk-hd h3{flex:1;margin:0;font-size:18px;font-weight:800}
+.mpk-x{width:36px;height:36px;border-radius:99px;background:var(--card);display:flex;align-items:center;justify-content:center}
+.mpk-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mcard{text-align:left;border-radius:20px;padding:14px;background:var(--card);border:1.5px solid var(--line);transition:transform .15s}.mcard:active{transform:scale(.97)}.mcard.last{border-color:var(--lime)}
+.mcard .mi{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}.mcard .t{font-weight:800;font-size:16px}.mcard .d{font-size:12.5px;color:var(--tx3);margin-top:3px;line-height:1.35}
+.mpk-ask{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx3);margin-top:12px;padding:0 4px}
+.fogc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
 .modechip{position:absolute;left:14px;top:calc(176px + var(--safeT));z-index:6;height:32px;padding:0 12px 0 8px;border-radius:99px;background:rgba(18,19,17,.86);border:1px solid var(--line2);display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .modechip i{width:18px;height:18px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-style:normal;color:#0A0B0A}
 .disc{position:absolute;right:66px;top:calc(176px + var(--safeT));z-index:6;max-width:46%;padding:6px 11px;border-radius:14px;background:rgba(18,19,17,.86);border:1px solid var(--line2);font-size:11.5px;font-weight:700;line-height:1.3;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
@@ -95,16 +96,18 @@ function applyMode(){const m=getMap();if(!m||!m.getLayer)return;const un=S.mapMo
   if(un)lockRefresh();}
 const chipHTML=()=>{const un=S.mapMode!=='nav';return`<button class="modechip" data-mode><i style="background:${un?'var(--lime)':'#22D3EE'}">${ic(un?'<path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/>':'<path d="M3 11l18-8-8 18-2-8z"/>',11,2.6)}</i>${un?'Desbloqueio':'Navegação'}</button>`;};
 const bindChip=el=>{const c=$('.modechip',el);if(c)c.onclick=()=>pickMode(true);};
-function pickMode(force){const host=document.getElementById('app');if(!host||$('.mpick',host))return;const last=S.mapMode;
-  const bgU=`<div class="bg" style="background:radial-gradient(120% 90% at 85% 20%,rgba(198,244,50,.55),transparent 55%),repeating-linear-gradient(60deg,transparent 0 22px,rgba(198,244,50,.12) 22px 24px),linear-gradient(135deg,#1E2A0E,#0A0B0A 70%)"></div>`;
-  const bgN=`<div class="bg" style="background:radial-gradient(120% 90% at 85% 20%,rgba(34,211,238,.5),transparent 55%),repeating-linear-gradient(-20deg,transparent 0 30px,rgba(34,211,238,.10) 30px 33px),linear-gradient(135deg,#0B2230,#0A0B0A 70%)"></div>`;
-  const w=document.createElement('div');w.className='mpick';w.innerHTML=`<h3>Escolha o modo</h3>
-   <button class="mcard ${last==='unlock'?'last':''}" data-m="unlock">${bgU}<span class="tag">TERRITÓRIO</span><div class="in"><div class="t" style="color:var(--lime2)">Desbloqueio</div><div class="d">Bairros fechados com cadeado. Dirija até eles pra abrir e pinte a cidade de hexágonos.</div></div></button>
-   <button class="mcard ${last==='nav'?'last':''}" data-m="nav">${bgN}<span class="tag">LIVRE</span><div class="in"><div class="t" style="color:#7FE7F7">Navegação</div><div class="d">Mapa limpo: rotas, radares, semáforos, postos e alertas. Sem território.</div></div></button>`;
-  host.appendChild(w);$$('[data-m]',w).forEach(b=>b.onclick=()=>{S.mapMode=b.dataset.m;save();w.remove();picked=true;applyMode();if(S.mapMode==='unlock')setTimeout(()=>{lockRefresh(true);},300);toast(S.mapMode==='unlock'?'Modo desbloqueio: dirija pra abrir bairros':'Modo navegação','dark');});}
+function pickMode(force){const host=document.getElementById('app');if(!host||$('.mpick',host))return;const last=S.mapMode||'unlock';
+  const w=document.createElement('div');w.className='mpick';w.innerHTML=`<div class="mpk-bd"></div><div class="mpk-sh"><div class="mpk-hd"><h3>Como você quer o mapa?</h3><button class="mpk-x" aria-label="Fechar">${ic('<path d="M6 6l12 12M18 6L6 18"/>',18,2.4)}</button></div>
+   <div class="mpk-row"><button class="mcard ${last==='unlock'?'last':''}" data-m="unlock"><span class="mi" style="background:var(--lime);color:#0A0B0A">${ic('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0"/>',20,2.4)}</span><div class="t">Desbloqueio</div><div class="d">Cidade no escuro. Dirija pra abrir.</div></button>
+   <button class="mcard ${last==='nav'?'last':''}" data-m="nav"><span class="mi" style="background:#22D3EE;color:#0A0B0A">${ic('<path d="M3 11l18-8-8 18-2-8z"/>',20,2.4)}</span><div class="t">Navegação</div><div class="d">Mapa limpo, rotas e alertas.</div></button></div>
+   <label class="mpk-ask"><input type="checkbox" id="mpkA" ${S.mapAsk===false?'checked':''}> Não perguntar de novo</label></div>`;
+  host.appendChild(w);requestAnimationFrame(()=>w.classList.add('on'));
+  const close=()=>{S.mapAsk=!$('#mpkA',w).checked?true:false;if(!S.mapMode)S.mapMode=last;save();picked=true;w.classList.remove('on');setTimeout(()=>w.remove(),260);applyMode();};
+  $('.mpk-bd',w).onclick=close;$('.mpk-x',w).onclick=close;
+  $$('[data-m]',w).forEach(b=>b.onclick=()=>{S.mapMode=b.dataset.m;close();if(S.mapMode==='unlock')setTimeout(()=>lockRefresh(true),300);toast(S.mapMode==='unlock'?'Desbloqueio: dirija pra abrir a cidade':'Modo navegação','dark');});}
 const mh=MS.html;MS.html=function(p){return mh.call(this,p)+chipHTML()+`<div class="disc" style="${S.mapMode==='nav'?'display:none':''}"></div><button class="fab" data-on="rank2" aria-label="Ranking" style="position:absolute;right:14px;bottom:calc(330px + var(--safeB));z-index:6">${ic(TROPHY,19)}</button>`;};
 MS.on.rank2=()=>router.go('rank2');
-const mm=MS.mount;MS.mount=function(el,p){const r=mm&&mm.call(this,el,p);bindChip(el);if(!picked)setTimeout(()=>{if(router.cur&&router.cur.name==='map')pickMode();},450);setTimeout(applyMode,600);discUpdate();return r;};
+const mm=MS.mount;MS.mount=function(el,p){const r=mm&&mm.call(this,el,p);bindChip(el);if(!picked&&S.mapAsk!==false)setTimeout(()=>{if(router.cur&&router.cur.name==='map')pickMode();},450);setTimeout(applyMode,600);discUpdate();return r;};
 /* ---------- bairros (Voronoi dos pontos de bairro do mapa) ---------- */
 let D3=null;const d3load=()=>D3||(D3=new Promise((ok,no)=>{if(window.d3&&window.d3.Delaunay)return ok(window.d3);const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/d3-delaunay@6.0.4/dist/d3-delaunay.min.js';s.onload=()=>ok(window.d3);s.onerror=no;document.head.appendChild(s);}));
 const cityKey=()=>norm((RL.myCity&&RL.myCity())||'');
@@ -121,39 +124,41 @@ function clipConvex(poly,clip){let out=poly;for(let i=0;i<clip.length-1;i++){con
 function circle(c,r,n=28){const kx=111320*Math.cos(rad(c[1])),ky=110540;const pts=[];for(let i=0;i<=n;i++){const a=i/n*2*Math.PI;pts.push([c[0]+r*Math.cos(a)/kx,c[1]+r*Math.sin(a)/ky]);}return pts;}
 const pip=(pt,poly)=>{let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];if(((yi>pt[1])!==(yj>pt[1]))&&(pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi))ins=!ins;}return ins;};
 let CELLS=[];
-async function buildCells(){const d3=await d3load().catch(()=>null);const me=myPos();
-  let hs=Object.entries(S.hoods).filter(([k,h])=>dist(me,h.p)<25000||dist((getMap()||{getCenter:()=>({toArray:()=>me})}).getCenter().toArray(),h.p)<25000);
-  if(!d3||hs.length<2){const cn=(RL.myCity&&RL.myCity())||'Sua cidade';CELLS=[{id:'city:'+norm(cn),n:cn,p:me,poly:circle(me,2500),city:true}];return CELLS;}
-  const pts=hs.map(([k,h])=>h.p);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);});
-  const pad=.03;const vor=d3.Delaunay.from(pts).voronoi([x0-pad,y0-pad,x1+pad,y1+pad]);
-  CELLS=hs.map(([k,h],i)=>{let poly=vor.cellPolygon(i);if(!poly)return null;poly=poly.slice(0,-1);
-    const ccw=(()=>{let a=0;for(let j=0;j<poly.length;j++){const p=poly[j],q=poly[(j+1)%poly.length];a+=p[0]*q[1]-q[0]*p[1];}return a>0;})();if(!ccw)poly.reverse();
-    let cl=circle(h.p,1800,24);let c2=clipConvex(poly,cl);if(c2.length<3)c2=poly;c2.push(c2[0]);return{id:k,n:h.n,p:h.p,poly:c2};}).filter(Boolean);
-  return CELLS;}
-function cellAt(p){return CELLS.find(c=>pip(p,c.poly));}
-function lockIcon(m){if(m.hasImage('lock'))return;const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');x.fillStyle='rgba(10,11,10,.9)';x.beginPath();x.arc(32,32,26,0,7);x.fill();x.strokeStyle='#FFB547';x.lineWidth=3;x.stroke();
-  x.strokeStyle='#FFB547';x.lineWidth=4;x.beginPath();x.arc(32,27,8,Math.PI,0);x.stroke();x.fillStyle='#FFB547';x.fillRect(20,28,24,16);m.addImage('lock',{width:64,height:64,data:new Uint8Array(x.getImageData(0,0,64,64).data.buffer)},{pixelRatio:2});}
-function ensureLayers(m){if(m.getSource('locks'))return;lockIcon(m);
-  m.addSource('locks',{type:'geojson',data:{type:'FeatureCollection',features:[]}});m.addSource('lockpts',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-  const before=m.getLayer('hex-fill')?undefined:undefined;
-  m.addLayer({id:'lk-fill',type:'fill',source:'locks',filter:['==',['get','L'],1],paint:{'fill-color':'#050605','fill-opacity':['interpolate',['linear'],['zoom'],10,.55,14,.62]}});
-  m.addLayer({id:'lk-line',type:'line',source:'locks',paint:{'line-color':['case',['==',['get','L'],1],'rgba(255,181,71,.35)','#C6F432'],'line-width':['case',['==',['get','L'],1],1,2],'line-dasharray':[2,2]}});
-  m.addLayer({id:'lk-me',type:'line',source:'locks',filter:['==',['get','me'],1],paint:{'line-color':'#C6F432','line-width':3,'line-opacity':.7,'line-blur':2}});
-  m.addLayer({id:'lk-sym',type:'symbol',source:'lockpts',minzoom:11,layout:{'icon-image':['case',['==',['get','L'],1],'lock',''],'icon-size':.7,'text-field':['get','n'],'text-font':['Noto Sans Bold'],'text-size':['interpolate',['linear'],['zoom'],11,10,15,13],'text-offset':[0,1.5],'text-anchor':'top','text-allow-overlap':false,'icon-allow-overlap':true},paint:{'text-color':['case',['==',['get','L'],1],'#FFC877','#E8FF9A'],'text-halo-color':'#050605','text-halo-width':1.5}});}
-let lrT=0;
-async function lockRefresh(first){const m=getMap();if(!m||S.mapMode==='nav'||!m.isStyleLoaded())return;harvest();ensureLayers(m);await buildCells();const me=myPos();const here=cellAt(me);
-  if(here&&!here.city&&!S.unlocked[here.id]&&!Object.keys(S.unlocked).some(k=>!k.startsWith('city:'))){S.unlocked[here.id]=Date.now();save();}
-  const f=[],pts=[];for(const c of CELLS){const L=(c.city||S.unlocked[c.id])?0:1;f.push({type:'Feature',properties:{L,me:here&&here.id===c.id?1:0},geometry:{type:'Polygon',coordinates:[c.poly]}});pts.push({type:'Feature',properties:{L,n:c.n},geometry:{type:'Point',coordinates:c.p}});}
-  m.getSource('locks').setData({type:'FeatureCollection',features:f});m.getSource('lockpts').setData({type:'FeatureCollection',features:pts});
-  const un=S.mapMode!=='nav';LOCKL.forEach(l=>{if(m.getLayer(l))m.setLayoutProperty(l,'visibility',un?'visible':'none');});discUpdate();}
-function discUpdate(){const el=router.cur&&router.cur.name==='map'&&router.cur.el;if(!el)return;const d=$('.disc',el);if(!d)return;const city=(RL.myCity&&RL.myCity())||'Sua cidade';
-  if(!CELLS.length||CELLS[0].city){d.innerHTML=`<b>…</b> carregando bairros de ${esc(city)}<br><span class="muted">aproxime o mapa da sua região</span>`;return;}
-  const tot=CELLS.length||1,un=CELLS.filter(c=>S.unlocked[c.id]).length;const pc=Math.round(un/tot*100);const here=cellAt(myPos());
-  d.innerHTML=`<b>${pc}%</b> de ${esc(city)} descoberta<br><span class="muted">${un}/${tot} bairros${here?' · você está em '+esc(here.n):''}</span>`;}
-function celebrate(name){const host=document.getElementById('app');const w=document.createElement('div');w.className='unlockfx';w.innerHTML=`<div class="k">BAIRRO DESBLOQUEADO</div><div class="n">${esc(name)}</div>`;host.appendChild(w);setTimeout(()=>w.remove(),2700);navigator.vibrate&&navigator.vibrate([30,40,60]);RL.horn&&0;}
-setInterval(()=>{if(S.mapMode==='nav'||!CELLS.length)return;const p=myPos();const c=cellAt(p);if(c&&!c.city&&!S.unlocked[c.id]){S.unlocked[c.id]=Date.now();save();celebrate(c.n);toast(`${c.n} desbloqueado! Agora pinte com hexágonos`);lockRefresh();}
+/* ---- névoa (fog of war): a cidade fica escura e abre por onde você passa ---- */
+S.fog=S.fog||{};const FG=.002;
+function fogMark(p,r){const kx=111320*Math.cos(rad(p[1])),ky=110540;const nx=Math.ceil(r/(FG*kx))+1,ny=Math.ceil(r/(FG*ky))+1;const cx=Math.floor(p[0]/FG),cy=Math.floor(p[1]/FG);let n=0;
+  for(let dx=-nx;dx<=nx;dx++)for(let dy=-ny;dy<=ny;dy++){const x=cx+dx,y=cy+dy;if(Math.hypot(((x+.5)*FG-p[0])*kx,((y+.5)*FG-p[1])*ky)<=r){const k=x+','+y;if(!S.fog[k]){S.fog[k]=1;n++;}}}return n;}
+const fogOpen=p=>!!S.fog[Math.floor(p[0]/FG)+','+Math.floor(p[1]/FG)];
+let FC=null,SPR=null,fogOn=false;
+function fogSprite(){if(SPR)return SPR;SPR=document.createElement('canvas');SPR.width=SPR.height=128;const x=SPR.getContext('2d');const g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(.55,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,128,128);return SPR;}
+function lockIc(x,px,py){x.save();x.translate(px,py);x.fillStyle='rgba(10,11,10,.9)';x.beginPath();x.arc(0,0,13,0,7);x.fill();x.strokeStyle='#FFB547';x.lineWidth=1.6;x.stroke();x.lineWidth=2.2;x.beginPath();x.arc(0,-2.5,4,Math.PI,0);x.stroke();x.fillStyle='#FFB547';x.fillRect(-6,-2,12,8);x.restore();}
+function fogDraw(){const m=getMap();if(!FC||!m)return;const on=S.mapMode!=='nav'&&fogOn;FC.style.display=on?'':'none';if(!on)return;
+  const dpr=Math.min(2,devicePixelRatio||1),W=FC.clientWidth,H=FC.clientHeight;if(FC.width!==Math.round(W*dpr)){FC.width=Math.round(W*dpr);FC.height=Math.round(H*dpr);}
+  const x=FC.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.globalCompositeOperation='source-over';x.clearRect(0,0,W,H);x.fillStyle='rgba(4,5,4,.95)';x.fillRect(0,0,W,H);
+  const b=m.getBounds(),c=m.getCenter();const mpp=40075016.686*Math.cos(rad(c.lat))/(512*Math.pow(2,m.getZoom()));const R=Math.max(3,(FG*111320*1.35)/mpp);
+  const x0=Math.floor(b.getWest()/FG)-2,x1=Math.ceil(b.getEast()/FG)+2,y0=Math.floor(b.getSouth()/FG)-2,y1=Math.ceil(b.getNorth()/FG)+2;
+  x.globalCompositeOperation='destination-out';const sp=fogSprite();
+  const ks=Object.keys(S.fog);if((x1-x0)*(y1-y0)<ks.length){for(let gx=x0;gx<=x1;gx++)for(let gy=y0;gy<=y1;gy++)if(S.fog[gx+','+gy]){const q=m.project([(gx+.5)*FG,(gy+.5)*FG]);x.drawImage(sp,q.x-R,q.y-R,R*2,R*2);}}
+  else for(const k of ks){const [gx,gy]=k.split(',').map(Number);if(gx<x0||gx>x1||gy<y0||gy>y1)continue;const q=m.project([(gx+.5)*FG,(gy+.5)*FG]);x.drawImage(sp,q.x-R,q.y-R,R*2,R*2);}
+  const me=m.project(myPos());x.drawImage(sp,me.x-R*1.2,me.y-R*1.2,R*2.4,R*2.4);
+  x.globalCompositeOperation='source-over';if(m.getZoom()>=11.5){x.font="800 12px Manrope,system-ui,sans-serif";x.textAlign='center';
+   for(const h of Object.values(S.hoods)){if(fogOpen(h.p))continue;const q=m.project(h.p);if(q.x<-60||q.y<-30||q.x>W+60||q.y>H+40)continue;lockIc(x,q.x,q.y);x.fillStyle='rgba(255,200,119,.92)';x.fillText(h.n,q.x,q.y+28);}}}
+function fogInit(){const m=getMap();if(!m||FC)return;const host=document.getElementById('mapHost');if(!host)return;FC=document.createElement('canvas');FC.className='fogc';host.appendChild(FC);
+  m.on('render',fogDraw);addEventListener('resize',fogDraw);
+  if(!S.fogSeed){(S.rides||[]).forEach(r=>(r.track||[]).forEach((p,i)=>{if(i%3===0)fogMark(p,220);}));S.fogSeed=1;save();}}
+const hoodsOpen=()=>Object.values(S.hoods).filter(h=>fogOpen(h.p));
+async function lockRefresh(first){const m=getMap();if(!m)return;fogInit();LOCKL.forEach(l=>{if(m.getLayer(l))m.setLayoutProperty(l,'visibility','none');});
+  if(S.mapMode==='nav'){fogOn=false;fogDraw();discUpdate();return;}harvest();fogOn=true;
+  if(!Object.keys(S.fog).length||first&&!fogOpen(myPos())){fogMark(myPos(),900);save();}
+  fogDraw();m.triggerRepaint&&m.triggerRepaint();discUpdate();}
+function discUpdate(){const el=router.cur&&router.cur.name==='map'&&router.cur.el;if(!el)return;const d=$('.disc',el);if(!d)return;if(S.mapMode==='nav'){d.style.display='none';return;}d.style.display='';
+  const km2=Object.keys(S.fog).length*Math.pow(FG*111.1,2)*.94;d.innerHTML=`<b>${hoodsOpen().length}</b> bairros · <b>${km2<10?km2.toFixed(1).replace('.',','):Math.round(km2)}</b> km²`;}
+function celebrate(name){const host=document.getElementById('app');const w=document.createElement('div');w.className='unlockfx';w.innerHTML=`<div class="k">BAIRRO DESBLOQUEADO</div><div class="n">${esc(name)}</div>`;host.appendChild(w);setTimeout(()=>w.remove(),2700);navigator.vibrate&&navigator.vibrate([30,40,60]);}
+let lastFogP=null;
+setInterval(()=>{if(S.mapMode==='nav'||!fogOn)return;const p=myPos();if(lastFogP&&dist(lastFogP,p)<25)return;lastFogP=p;const before=new Set(hoodsOpen().map(h=>h.n));
+  if(fogMark(p,260)){save();fogDraw();const nw=hoodsOpen().filter(h=>!before.has(h.n));if(nw.length){celebrate(nw[0].n);toast(`${nw[0].n} desbloqueado! Agora pinte com hexágonos`);}discUpdate();}
   const cn=RL.myCity&&RL.myCity();if(cn&&!S.cities[norm(cn)]){S.cities[norm(cn)]={n:cn,t:Date.now(),p};save();}},2000);
-(function wait(){const m=getMap();if(!m||!m.on){setTimeout(wait,500);return;}m.on('idle',()=>{if(S.mapMode==='nav')return;clearTimeout(lrT);lrT=setTimeout(()=>{if(harvest()||!CELLS.length)lockRefresh();},400);});m.on('moveend',()=>{if(S.mapMode!=='nav'){clearTimeout(lrT);lrT=setTimeout(lockRefresh,700);}});})();
+(function wait(){const m=getMap();if(!m||!m.on){setTimeout(wait,500);return;}fogInit();m.on('idle',()=>{if(S.mapMode==='nav')return;clearTimeout(lrT);lrT=setTimeout(()=>{if(harvest())fogDraw();if(!fogOn)lockRefresh();},400);});})();
 RL.isCityUnlocked=name=>!!S.cities[norm(name)]||norm(name)===cityKey();
 /* =====================================================================
    4) BUSCA INTELIGENTE com categorias

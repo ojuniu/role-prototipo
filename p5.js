@@ -97,7 +97,7 @@ SCREENS.search={tabbar:false,
    tm=setTimeout(()=>{photon(v,near,tmo(9000,ctl)).then(got,()=>got([]));nomi(v,near,tmo(8000,ctl)).then(got,()=>got([]));},350);});
   q.addEventListener('keydown',e=>{if(e.key==='Enter'&&items[0]&&q.value.trim().length>=2){$('[data-i="0"]',res).click();}});}};
 /* ================= deslizar entre as abas ================= */
-const TABS=['map','feed','garage','profile'];const FT=['all','fol','crew'];
+const TABS=[];const FT=['all','fol','crew'];
 (function(){let sx,sy,st0,ok=false;const host=()=>document.getElementById('screens');
  document.addEventListener('touchstart',e=>{const t=e.touches[0];ok=false;const cur=router.cur;if(!cur||cur.tabbar===false||e.touches.length>1)return;if(cur.clear)return;
   const cs=e.target.closest('.ttcs');if(cs&&cs.scrollWidth>cs.clientWidth+4)return;if(e.target.closest('.chips,.stories,.vbar,.gcar,input,textarea,.smapw,.brands,.swrow,.covergrid,.noswipe'))return;if(!host().contains(e.target))return;sx=t.clientX;sy=t.clientY;st0=Date.now();ok=true;},{passive:true});
@@ -112,19 +112,17 @@ const urlCache=new Map();const getURL=async k=>{if(urlCache.has(k))return urlCac
 const playV=x=>{if(!x||x.dataset.up)return;x.muted=!S.sound;const p=x.play();if(p&&p.catch)p.catch(()=>{if(!x.muted){x.muted=true;x.play().catch(()=>{});}});};RL.playV=playV;
 const inView=el=>{const r=el.getBoundingClientRect();return r.bottom>innerHeight*.3&&r.top<innerHeight*.7&&r.right>0&&r.left<innerWidth;};
 async function fillMedia(root){for(const el of $$('[data-mk]',root)){if(el.dataset.done)continue;el.dataset.done=1;const u=await getURL(el.dataset.mk);if(u){el.src=u;el.classList.add('ok');if(el.tagName==='VIDEO'){el.load();if(inView(el))playV(el);}}}}
+RL.fillMedia=fillMedia;
 async function shrink(f){if(!f.type.startsWith('image/'))return f;const u=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=u;});const k=Math.min(1,1920/Math.max(img.width,img.height),1080/Math.min(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);return await new Promise(ok=>c.toBlob(b=>ok(b||f),'image/jpeg',.85));}
 /* vídeos de carros (Wikimedia Commons) */
 const canV=v=>{try{const t=String(v&&v.type||'').split(';')[0]||(/\.webm/i.test(v&&v.src||'')?'video/webm':'video/mp4');return!!document.createElement('video').canPlayType(t);}catch(e){return true;}};
-let VIDS=null;try{VIDS=JSON.parse(localStorage.getItem('role.vids3')||'null');if(VIDS)VIDS=VIDS.filter(canV);}catch(e){}
-const VCATS=['Videos of automobiles','Videos of driving','Videos of auto racing','Videos of motorcycles','Dashcam videos'];const VBAD=/tornado|meteor|war|attack|protest|crash|accident|police|nebula|military|missile|地震|kino|1923|19[0-4]\d/i;
-async function videos(){if(VIDS&&VIDS.length)return VIDS;const out=[];
-  for(const c of VCATS){try{const j=await(await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=categorymembers&gcmtype=file&gcmlimit=50&gcmtitle='+encodeURIComponent('Category:'+c)+'&prop=videoinfo&viprop=url|derivatives|size|mediatype&format=json&origin=*')).json();
-    for(const p of Object.values((j.query||{}).pages||{})){const v=p.videoinfo&&p.videoinfo[0];if(!v||!v.width||VBAD.test(p.title)||/\.(ogg|oga|mp3|wav|flac)$/i.test(v.url))continue;if(v.duration&&(v.duration<4||v.duration>240))continue;
-     const ds=(v.derivatives||[]).filter(d=>/video/.test(d.type));const pick=ds.filter(d=>(d.height||0)<=1080&&(d.height||0)>=360).sort((a,b)=>(b.height||0)-(a.height||0));const d=pick.find(x=>/mp4/.test(x.type))||pick[0];if(!d)continue;
-     out.push({src:d.src,type:d.type,w:v.width,h:v.height,t:p.title.replace(/^File:/,'').replace(/\.[a-z0-9]+$/i,'')});}}catch(e){}}
-  VIDS=out.filter(canV).sort((a,b)=>hsh(a.src)-hsh(b.src)).slice(0,60);if(VIDS.length)try{localStorage.setItem('role.vids3',JSON.stringify(VIDS));}catch(e){}return VIDS;}
+/* lista curada e testada (todos tocam no navegador); 720p com volta pra 480p */
+const VL=[['8/80','Drifting.webm',1,'High Resolution Database','CC BY 3.0'],['5/5b','Drift_Zone_2_Teaser.webm',1,'PLOT TWIST','CC BY 3.0'],['a/a6','2011_MCR_-_Fisichella_drift.ogv',1,'Sasha Krotov','CC BY 3.0'],['3/3f','Tuning-Motor-Party-2023-Vyškov-46.webm',1,'Hugo','CC BY-SA 4.0'],['1/17','Tuning-Motor-Party-2023-Vyškov-45.webm',1,'Hugo','CC BY-SA 4.0'],['7/72','4th_International_Auto_Show,_Palace_Grounds,_Bangalore_(2025)_04.webm',1,'Gpkp','CC BY-SA 4.0'],['9/9d','Cars_drifting_around_a_race_track_at_twilight_and_night_as_viewed_from_FPV_drone.webm',1,'anotherview','CC BY 3.0'],['8/82','Cars_driving_at_night.webm',1,'Editor (YouTube)','CC BY 3.0'],['0/08','Harley-Davidson.webmhd.webm',0,'Christilpetersen','CC BY-SA 3.0'],['9/90','Bandoleros_race_final_lap_at_Golden_Sands_Speedway_won_by_Derek_Kraus.webm',1,'Royalbroil','CC BY-SA 4.0'],['c/c9','2023_Toyota-Save_Mart_350_-_Sarah_Stierch_-_Video_02.webm',1,'Missvain','CC BY 4.0'],['3/30','1969_AMC_AMX_SS_Hurst_factory_dragcar_as_McCorkle_Bros_at_AMO_2024_meet_15of16.ogv',1,'CZmarlin','CC BY-SA 4.0'],['1/10','Rib’Car_2_(video).webm',1,'Cjp24','CC BY-SA 4.0'],['d/d1','Riding_on_the_road_shoulder_on_a_motorcycle_in_Queensland.webm',1,'TMRQld','CC BY 3.0'],['3/36','4th_International_Auto_Show,_Palace_Grounds,_Bangalore_(2025)_03.webm',1,'Gpkp','CC BY-SA 4.0'],['f/f5','Japan-Mobility-Show-2023-Nippatsu-Car-Spring.webm',1,'RuinDig','CC BY 4.0'],['9/92','Driving_past_the_Mai_Mahiu_Viewpoint_of_the_Great_Rift_Valley,_Kenya.webm',1,'Lebu Ayiga','CC BY 4.0'],['4/48','The_last_day_of_our_road_trip_to_Iran_in_2_minutes.webm',0,'AsuhsWorld','CC BY 3.0'],['4/43','1973_AMC_Gremlin_X_highly_modified_dragstrip_AMC_powered_race_car_at_AMO_2024_show_12of12.webm',0,'CZmarlin','CC BY 4.0']];
+const UP='https://upload.wikimedia.org/wikipedia/commons/';
+const VIDS=VL.map(([h,n,tr,a,l])=>{const e=encodeURIComponent(n);const base=tr?UP+'transcoded/'+h+'/'+e+'/'+e:'';return{src:tr?base+'.480p.vp9.webm':UP+h+'/'+e,hd:tr?base+'.720p.vp9.webm':'',type:'video/webm',poster:'https://upload.wikimedia.org/wikipedia/commons/thumb/'+h+'/'+e+'/960px--'+e+'.jpg',t:n.replace(/_/g,' ').replace(/\.(webm|ogv)$/,'').replace(/\.webmhd$/,''),a,l,fn:n};}).filter(canV);
+RL.VIDS=VIDS;async function videos(){return VIDS;}
+const vtag=(v,extra='')=>`<video muted loop playsinline preload="none" poster="${esc(v.poster||'')}" ${extra}>${v.hd?`<source src="${esc(v.hd)}" type="video/webm">`:''}<source src="${esc(v.src)}" type="video/webm"></video>`;RL.vtag=vtag;
 const vsrc=v=>typeof v==='string'?v:v.src;
-videos();
 /* ================= FEED em tela cheia nas 3 abas ================= */
 const MAXM=10;
 const vslide=v=>`<div class="vs">${v}<div class="vplay">${ic(I.play,34,2)}</div><div class="vtime"></div><div class="vbar"><div class="tr"><div class="fl"></div><i class="kn"></i></div></div></div>`;
@@ -141,7 +139,7 @@ function togglePlay(vs){const v=$('video',vs);if(!v)return;if(v.paused){delete v
 function mediaPost(p){const w=C.who(p.h)||{n:p.h,h:p.h};const cr=w.crew&&C.CREWS?C.CREWS[w.crew]:null;const key=p.model||(p.car?RL.modelKey(p.car):(w.car?RL.modelKey(w.car):''));
   const on=p.mine?!!(S.posts.find(x=>x.id===p.id)||{}).hornOn:!!S.horn[p.id];const n=p.mine?(S.posts.find(x=>x.id===p.id)||{}).horn||0:p.horn+(S.horn[p.id]?1:0);const cm=(p.cm||[]).length+((S.cm||{})[p.id]||[]).length;
   let slides=[];if(p.media)slides=p.media.map(m=>m.type==='video'?vslide(`<video data-mk="${m.k}" muted loop playsinline preload="metadata"></video>`):`<div><img data-mk="${m.k}" alt=""></div>`);
-  else if(p.kind==='video')slides=[vslide(`<video src="${esc(vsrc(p.vid))}" muted loop playsinline preload="none" onerror="this.closest('.tti').querySelector('.ttcs').innerHTML='<div>'+(this.dataset.fb||'')+'</div>'" data-fb="${esc(RL.picTag(key,p.id))}"></video>`)];
+  else if(p.kind==='video')slides=[vslide(vtag(typeof p.vid==='string'?{src:p.vid}:p.vid))];
   else for(let k=0;k<(p.nph||1);k++)slides.push(`<div>${RL.picTag(key,p.id+':'+k)}</div>`);
   const hasVid=slides.some(s=>s.includes('<video'));
   const loc=p.loc==='hidden'?'':(p.where||p.city||(p.mine?'':''));
@@ -155,7 +153,7 @@ function mediaPost(p){const w=C.who(p.h)||{n:p.h,h:p.h};const cr=w.crew&&C.CREWS
   <div class="ttinfo">${slides.length>1?`<div class="ttdots">${slides.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div>`:''}<button class="b" data-on="prof" data-h="${esc(p.h)}" style="font-size:16px;color:#fff;text-align:left">${esc(w.n)} ${cr?`<span style="color:${cr.c};font-weight:700">· ${esc(w.crew)}</span>`:''}</button>
    <div class="small" style="opacity:.85;margin-top:2px">@${esc(p.h)} · ${ago(p.t)}${RL.distTxt?RL.distTxt(p.h):''}${key?` · <button data-on="model" data-m="${esc(key)}" class="carlink" style="color:#fff">${esc(key)}</button>`:''}</div>
    <div class="tttxt">${esc(p.txt||'')}</div>${loc?`<span class="pmloc">${ic(PIN,13)}<span>${esc(loc)}</span></span>`:''}
-   ${!p.mine?`<div class="small" style="opacity:.5;margin-top:8px">${p.kind==='video'?'Vídeo de exemplo'+(p.vtitle?' · '+esc(p.vtitle.slice(0,40)):''):'Foto'}: Wikimedia Commons (CC)</div>`:''}</div></section>`;}
+   ${!p.mine?`<div class="small" style="opacity:.5;margin-top:8px">${p.kind==='video'?'Vídeo: '+esc(((p.vid&&p.vid.a)||'')+' · '+((p.vid&&p.vid.l)||'CC')):'Foto: Commons (CC)'}, via Wikimedia Commons</div>`:''}</div></section>`;}
 function item(p){return(p.media||p.kind==='photo'||p.kind==='video')?mediaPost(p):T.ttItem(p);}
 const made=new Map();const getP=i=>{if(!made.has(i))made.set(i,T.genPost(i));return made.get(i);};
 function genMore(i,f){let p=getP(i);if(f&&f!=='all'){const allow=f==='fol'?Object.keys(S.follow):T.people().filter(w=>w.crew&&w.crew===S.me.crew).map(w=>w.h);if(allow.length&&!allow.includes(p.h)){const id=p.id+f;let q=made.get(id);if(!q){q={...p,id,h:allow[Math.floor(hsh(id)*allow.length)],cm:[]};const w=C.who(q.h);if(w&&w.car)q.model=RL.modelKey(w.car);made.set(id,q);RL.extraPosts.push(q);}p=q;}}
