@@ -17,6 +17,18 @@ const st=document.createElement('style');st.textContent=`
 :root{--lime3:color-mix(in srgb,var(--lime) 70%,#000)}
 .stk-layer{display:none!important}
 .evmap .smapw .smap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+#hold.ring{width:80px!important;height:80px!important}
+#trm,.gr3>button,.ig-cs>div,.pmap{position:relative;overflow:hidden}
+.smap img{width:257px!important;height:257px!important}
+/* perfil de outra pessoa */
+.ppx .pf-h{padding-top:2px}
+.prk{margin:12px 16px 2px;padding:14px 16px;border-radius:22px;background:var(--surf);border:1px solid var(--line);display:flex;align-items:center;gap:12px;width:calc(100% - 32px);text-align:left}
+.prk .tr{width:42px;height:42px;border-radius:14px;background:var(--lime);color:var(--on-acc,#0A0B0A);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.prk .g{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.prk .g b{display:block;font-size:17px}.prk .g small{color:var(--tx3);font-size:11.5px}
+.pcar{margin:12px 16px 0;border-radius:24px;background:var(--surf);border:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:10px 14px 10px 10px;width:calc(100% - 32px);text-align:left}
+.pcar .im{width:112px;height:70px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}.pcar .im img{max-width:100%;max-height:100%;object-fit:contain}.pcar .im svg{width:80%;opacity:.5}
+.pcar .g{flex:1;min-width:0}.pcar .g small{color:var(--tx3);font-size:12px}.pcar .g b{display:block;font-size:16px}
+.gr3 .ph{position:absolute;inset:0}.gr3 .ph img{width:100%;height:100%;object-fit:cover}
 /* garagem no perfil */
 .pgar{margin:10px 16px 2px;border-radius:24px;background:var(--surf);border:1px solid var(--line);overflow:hidden}
 .pgh{display:flex;align-items:center;padding:12px 16px 0}.pgh b{flex:1;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3)}.pgh button{font-size:13px;font-weight:700;color:var(--acc-ink,var(--lime2));display:flex;align-items:center;gap:2px}
@@ -366,4 +378,34 @@ const r1=router.render.bind(router);router.render=function(n,a,b){r1(n,a,b);if((
 setTimeout(accApply,0);
 /* ao trocar a cor nos ajustes, aplica na hora */
 if(SCREENS.settings&&SCREENS.settings.on&&SCREENS.settings.on.acc){const ac=SCREENS.settings.on.acc;SCREENS.settings.on.acc=function(a){ac.call(this,a);lastAcc=null;accApply();};}
+/* ================= perfil de outra pessoa (mesmo formato do meu) ================= */
+const T=RL.tt;const hsh=x=>{let h=2166136261;x=String(x);for(let i=0;i<x.length;i++){h^=x.charCodeAt(i);h=Math.imul(h,16777619);}return((h>>>0)%100000)/100000;};
+const fmtN=n=>n>=1e4?Math.round(n/1e3)+' mil':n>=1e3?(n/1e3).toFixed(1).replace('.',',')+' mil':String(n);
+const GRIDI='<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',TROPHY='<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',SEND='<path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/>',FLAG='<path d="M4 22V4M4 4h13l-2 4 2 4H4"/>';
+function personPosts(p){const key=mk(p.car||'');const real=[...(C.FPOSTS||[]),...(RL.extraPosts||[])].filter(x=>x.h===p.h);const n=9+Math.floor(hsh('pp'+p.h)*9);const isR=x=>!x.media&&x.kind!=='photo'&&x.kind!=='video';const out=real.filter(x=>!isR(x));
+  for(let i=0;out.length<n;i++){const id='pp_'+p.h+'_'+i;out.push({id,h:p.h,kind:'photo',model:key,nph:1+Math.floor(hsh(id)*3),t:Date.now()-(i+1)*hsh(id+'t')*5*864e5-i*864e5,txt:['Lavou, tá novo','Rolê de domingo','Pôr do sol na estrada','Parada pro café','Garagem em dia','Quem colou?'][i%6],horn:Math.floor(hsh(id+'h')*300),cm:[]});}
+  if(RL.extraPosts)out.forEach(x=>{if(x.id.startsWith('pp_')&&!RL.extraPosts.find(y=>y.id===x.id))RL.extraPosts.push(x);});return{grid:out,rides:real.filter(isR)};}
+function rankOf(p){const P=(C.P||[]);const by=f=>[...P].sort((a,b)=>(b[f]||0)-(a[f]||0)).findIndex(x=>x.h===p.h)+1;const c=by('km')||1;return{city:c,br:c*23+Math.floor(hsh('br'+p.h)*40),hex:by('hex')||1};}
+SCREENS.person={tabbar:false,
+ html(pp){const p=C.person?C.person(pp.h):C.who(pp.h);if(!p)return`<div class="x-top"><button class="rb" data-back>${ic(BACK,20)}</button></div><div class="empty">Perfil não encontrado</div>`;this.p=p;
+  const cr=p.crew&&C.CREWS[p.crew];const fo=!!S.follow[p.h];const key=mk(p.car||'');const moto=RL.isMoto&&RL.isMoto(key);const {grid}=personPosts(p);const rk=rankOf(p);const t=this.t||'posts';
+  const loc=RL.personLocTxt?RL.personLocTxt(p).replace(/^ · /,''):'';const mut=RL.mutual&&RL.mutual(p.h);
+  return`<div class="x-top"><button class="rb" data-back aria-label="Voltar">${ic(BACK,20)}</button><h1 style="font-size:18px;flex:1;text-align:center;margin:0">${esc(p.h)}</h1><button class="rb" data-on="chal" aria-label="Desafiar">${ic(FLAG,19)}</button></div>
+  <div class="xs ppx" id="ppx"><div class="pf-h"><span>${RL.avatar2(p,86)}</span><div class="pf-st"><div><b>${grid.length}</b><span>posts</span></div><div><b>${fmtN((p.fol||0)+(fo?1:0))}</b><span>seguidores</span></div><div><b>${20+Math.floor(hsh('sg'+p.h)*300)}</b><span>seguindo</span></div></div></div>
+   <div class="pf-b"><b>${esc(p.n)}</b>${p.bio?`<div>${esc(p.bio)}</div>`:''}<div class="muted small" style="margin-top:2px">${[(p.km||0)+' km no mês',(p.hex||0)+' hex',loc].filter(Boolean).map(esc).join(' · ')}</div>${cr?`<button class="cr" data-go="crew" data-p='${esc(JSON.stringify({id:p.crew}))}'><i style="width:9px;height:9px;border-radius:9px;background:${cr.c}"></i>${esc(p.crew)}</button>`:''}${mut?'<span class="small muted" style="margin-left:8px">Vocês se seguem</span>':''}</div>
+   <div class="pf-btns"><button class="btn2 ${fo?'sec':''}" data-on="fol">${fo?'Seguindo':'Seguir'}</button><button class="btn2 sec" data-on="msg">Mensagem</button></div>
+   <button class="pcar" data-car="${esc(key)}"><span class="im">${RL.heroPic?RL.heroPic(key,p.h,moto):(RL.silh?RL.silh(moto?'moto':'car'):'')}</span><span class="g"><small>Garagem · em destaque</small><b>${esc(p.car||'')}</b><small>Toque pra ver o modelo</small></span>${ic(CHEV,16)}</button>
+   <button class="prk" data-go="rank2"><span class="tr">${ic(TROPHY,20)}</span><span class="g"><span><b>#${rk.city}</b><small>na cidade</small></span><span><b>#${rk.br}</b><small>no Brasil</small></span><span><b>#${rk.hex}</b><small>hexágonos</small></span></span>${ic(CHEV,16)}</button>
+   <div class="tabs2" style="margin-top:12px">${[['posts',GRIDI],['rides',ROUTE],['bdg',TROPHY]].map(([k,i])=>`<button class="${k===t?'on':''}" data-on="tab" data-k="${k}" aria-label="${k}">${ic(i,20)}</button>`).join('')}</div><div id="ppt"></div></div>`;},
+ mount(el){const p=this.p;if(!p)return;const box=$('#ppt',el);const t=this.t||'posts';const {grid,rides}=personPosts(p);
+  if(t==='posts'){box.innerHTML=`<div class="gr3" style="padding-top:3px">${grid.map(x=>`<button data-on="pp" data-id="${esc(x.id)}">${x.kind==='video'&&x.vid?`<img src="${esc(x.vid.poster||'')}" alt="" style="width:100%;height:100%;object-fit:cover">`:`<span class="ph">${RL.picTag?RL.picTag(x.model||mk(p.car||''),x.id+':0'):''}</span>`}</button>`).join('')}</div>`;}
+  else if(t==='rides'){box.innerHTML=rides.length?rides.map(r=>RL.igCard?RL.igCard(r):'').join(''):`<div style="padding:40px 30px;text-align:center" class="muted">Nenhum rolê público ainda.</div>`;rides.forEach(r=>T&&T.needRoute&&T.needRoute(r));if(RL.feedWire)RL.feedWire(box);}
+  else{const B=[['Primeiro rolê',1],['100 km',(p.km||0)>=100],['1.000 km',(p.km||0)*8>=1000],['50 hex',(p.hex||0)>=50],['Explorador',hsh('ex'+p.h)<.6],['3 cidades',hsh('cs'+p.h)<.5],['Viajante',hsh('vj'+p.h)<.45],['Crew',!!p.crew],['Madrugada',hsh('md'+p.h)<.3]];
+   box.innerHTML=`<div class="bdg">${B.map(([n,ok])=>`<div class="${ok?'':'off'}"><div class="e">${ic(TROPHY,20)}</div><b>${n}</b><small>${ok?'conquistado':'bloqueado'}</small></div>`).join('')}</div>`;}
+  if(RL.fillMedia)RL.fillMedia(box);},
+ on:{...(C.postHandlers||{}),tab(a){this.t=a.dataset.k;$$('.tabs2 button',this.el).forEach(b=>b.classList.toggle('on',b===a));this.mount(this.el);},
+  fol(a){const on=!S.follow[this.p.h];C.follow(this.p.h,on);router.render(this,true,true);},
+  msg(){router.go('dm',{id:'u:'+this.p.h});},
+  pp(a){const x=[...(RL.extraPosts||[]),...(C.FPOSTS||[])].find(y=>y.id===a.dataset.id);if(!x||!RL.igCard)return;sheet(`<div style="margin:-6px -6px 0">${RL.igCard(x)}</div>`,w=>{if(RL.fillMedia)RL.fillMedia(w);});},
+  chal(){const p=this.p;toast('Desafio enviado: quem fizer mais hex até domingo vence','dark');S.notifs.unshift({id:'n'+Date.now(),t:Date.now(),txt:`Você desafiou ${p.n}. Quem fizer mais hex até domingo vence.`,read:true});save();}}};
 })();

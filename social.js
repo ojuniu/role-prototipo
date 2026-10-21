@@ -107,6 +107,13 @@ function staticMap(coords,W,H,o={}){if(!coords||coords.length<2)return'';const p
   const route=o.noRoute?'':`<polyline points="${pts.join(' ')}" fill="none" stroke="#C6F432" stroke-opacity=".28" stroke-width="${sw*3.2}" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${pts.join(' ')}" fill="none" stroke="#DCFF4A" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>${o.ends===false?'':`<circle cx="${a[0]}" cy="${a[1]}" r="${sw*1.4}" fill="#0A0B0A" stroke="#C6F432" stroke-width="${sw*.7}"/><circle cx="${b[0]}" cy="${b[1]}" r="${sw*1.6}" fill="#C6F432"/>`}`;
   return`<div class="smap ${o.blur?'blur':''}" style="width:${W}px;height:${H}px">${imgs}<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${route}${o.extra?o.extra(c=>[(lon2x(c[0],z)-ox),(lat2y(c[1],z)-oy)]):''}</svg></div>`;}
 RL.staticMap=staticMap;
+/* trajeto com localização oculta: sem mapa, fundo limpo de pontos */
+function hiddenSVG(c,W,H){if(!c||c.length<2)return'';const k=Math.cos(c[0][1]*Math.PI/180);let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;const P=c.map(p=>[p[0]*k,-p[1]]);P.forEach(([x,y])=>{x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);});
+  const pad=Math.min(W,H)*.16,s=Math.min((W-2*pad)/Math.max(1e-9,x1-x0),(H-2*pad)/Math.max(1e-9,y1-y0)),ox=(W-(x1-x0)*s)/2,oy=(H-(y1-y0)*s)/2;const T=([x,y])=>[(ox+(x-x0)*s).toFixed(1),(oy+(y-y0)*s).toFixed(1)];
+  const d='M'+P.map(T).map(p=>p.join(' ')).join(' L');const a=T(P[0]),b=T(P[P.length-1]);const id='hd'+Math.random().toString(36).slice(2,7);
+  return`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block"><defs><pattern id="${id}" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.1" fill="rgba(255,255,255,.09)"/></pattern><radialGradient id="${id}g" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#1A1C18"/><stop offset="1" stop-color="#0A0B0A"/></radialGradient></defs>
+   <rect width="${W}" height="${H}" fill="url(#${id}g)"/><rect width="${W}" height="${H}" fill="url(#${id})"/><path d="${d}" fill="none" stroke="#C6F432" stroke-opacity=".18" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#DCFF4A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${a[0]}" cy="${a[1]}" r="6" fill="#0A0B0A" stroke="#C6F432" stroke-width="3"/><circle cx="${b[0]}" cy="${b[1]}" r="7" fill="#C6F432"/></svg>`;}
+RL.hiddenSVG=hiddenSVG;
 const trim=(c,m)=>{if(!c||c.length<4)return c;const d=(a,b)=>Math.hypot((a[0]-b[0])*111320*Math.cos(a[1]*Math.PI/180),(a[1]-b[1])*110540);let s=0,i=0;while(i<c.length-2&&s<m){s+=d(c[i],c[i+1]);i++;}let e=0,j=c.length-1;while(j>i+1&&e<m){e+=d(c[j],c[j-1]);j--;}return c.slice(i,j+1);};
 /* rotas reais pros posts simulados (OSRM, uma por vez) */
 const RT=new Map(),RQ=[];let rbusy=false;
@@ -120,7 +127,7 @@ async function pump(){if(rbusy||!RQ.length)return;rbusy=true;const p=RQ.shift();
 function routeOf(p){if(p.mine)return{c:p.track,names:p.where?[p.where]:[],km:p.km,sec:p.sec};const r=RT.get(p.id);if(!r){needRoute(p);return null;}return r.c?r:{c:p.track,names:[],km:p.km,sec:p.sec,fake:1};}
 function locLabel(p,r){const m=p.loc||locMode(p.h);if(m==='hidden')return'Localização oculta';const city=p.mine&&p.city?p.city:myCity();if(m==='city')return city||'Cidade';const n=(r&&r.names||[]).slice(0,2).join(' → ');return(n?n+(city?' · ':''):'')+(city||'');}
 function mapInner(p,W,H,o={}){const r=routeOf(p);if(!r)return`<div class="pmload">Carregando mapa…</div>`;const m=p.loc||locMode(p.h);let c=r.c;if(p.hideEnds&&m==='exact')c=trim(c,200);
-  const html=m==='hidden'?`<div style="position:absolute;inset:0">${trackSVG(c,W,H)}</div>`:staticMap(c,W,H,{blur:m==='city',maxZ:m==='city'?12:17,...o});
+  const html=m==='hidden'?`<div style="position:absolute;inset:0">${hiddenSVG(c,W,H)}</div>`:staticMap(c,W,H,{blur:m==='city',maxZ:m==='city'?12:17,...o});
   return html+(m==='hidden'?'':'<span class="osmc">Esri · © OpenStreetMap</span>')+`<span class="pmloc">${ic(PIN,13)}<span>${esc(locLabel(p,r))}</span></span>`;}
 function fillMaps(id){const p=findPost(id);if(!p)return;$$(`[data-pm="${id}"]`).forEach(el=>{el.innerHTML=mapInner(p,+el.dataset.w,+el.dataset.h,el.dataset.tt?TTO:{});});const r=RT.get(id);if(r&&r.km)$$(`[data-pkm="${id}"]`).forEach(el=>el.textContent=String(Math.round(r.km*10)/10).replace('.',',')+' km');}
 const TTO={pad:70,fitH:520,shiftY:120,sw:6};

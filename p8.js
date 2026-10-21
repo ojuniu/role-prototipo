@@ -194,7 +194,11 @@ const st=document.createElement('style');st.textContent=`
 .modechip{top:calc(76px + var(--safeT))!important}.disc{top:calc(76px + var(--safeT))!important;right:auto!important;left:150px;max-width:none!important;white-space:nowrap}
 .gobtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(92px + var(--safeB));z-index:6;height:52px;padding:0 22px 0 16px;border-radius:999px;background:var(--lime);color:#0A0B0A;font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.45);transition:transform .15s}.gobtn:active{transform:translateX(-50%) scale(.95)}
 /* reels: mídia 3:4 no topo, legenda abaixo */
-.tti .ttbg{top:calc(58px + var(--safeT))!important;bottom:auto!important;height:auto!important;aspect-ratio:3/4;max-height:calc(100% - 250px);left:0;right:0;border-radius:0 0 22px 22px;overflow:hidden}
+.tti .ttbg{top:calc(58px + var(--safeT))!important;bottom:auto!important;height:auto!important;aspect-ratio:3/4;max-height:calc(100% - 250px);left:0;right:0;border-radius:0!important;overflow:hidden}
+.tti:has(.vs) .ttbg{bottom:calc(178px + var(--safeB))!important;aspect-ratio:auto!important;max-height:none!important}
+.tti:has(.vs) .ttcs video{object-fit:contain!important;object-position:center bottom}
+.tti:has(.vs) .vbar{bottom:2px!important}
+.tti:has(.vs) .ttshade{background:linear-gradient(rgba(0,0,0,.5),transparent 18%)!important}
 .tti .ttcs>div,.tti .ttcs img,.tti .ttcs video{object-fit:cover!important;background:#000}
 .tti .ttshade{background:linear-gradient(transparent 55%,rgba(0,0,0,.9) 78%)!important}
 `;document.head.appendChild(st);
